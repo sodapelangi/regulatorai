@@ -78,44 +78,55 @@ export function RegulationDetail({
   const completionPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            {/* Left side - Back button and title */}
-            <div className="flex items-center space-x-4 flex-1 min-w-0">
+    <div className="min-h-screen bg-gray-50/30">
+      {/* Clean Header */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 py-6">
+          <div className="flex items-start justify-between gap-6">
+            {/* Left: Navigation & Title */}
+            <div className="flex items-start gap-4 flex-1 min-w-0">
               <Button 
                 variant="ghost" 
                 onClick={onBack} 
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                className="mt-1 flex-shrink-0 text-gray-600 hover:text-gray-900"
               >
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to List
               </Button>
               
-              <div className="h-6 w-px bg-gray-300" />
-              
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="p-2 bg-blue-50 rounded-lg flex-shrink-0">
-                  <Gavel className="h-5 w-5 text-blue-600" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h1 className="text-lg font-semibold text-gray-900 truncate">
-                    {regulation.title}
-                  </h1>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="text-sm text-gray-500 font-medium">{regulation.number}</span>
-                    <Badge variant={getStatusColor(regulation.status)} className="text-xs">
-                      {regulation.status.toUpperCase()}
-                    </Badge>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-blue-50 rounded-lg">
+                    <FileText className="h-5 w-5 text-blue-600" />
                   </div>
+                  <Badge variant={getStatusColor(regulation.status)} className="text-xs font-medium">
+                    {regulation.status.toUpperCase()}
+                  </Badge>
+                </div>
+                
+                <h1 className="text-2xl font-bold text-gray-900 leading-tight mb-2">
+                  {regulation.title}
+                </h1>
+                
+                <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <span className="font-medium">{regulation.number}</span>
+                  <span>•</span>
+                  <span>{new Date(regulation.establishedDate).toLocaleDateString('en-US', { 
+                    day: 'numeric', 
+                    month: 'long', 
+                    year: 'numeric' 
+                  })}</span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    {regulation.location}
+                  </span>
                 </div>
               </div>
             </div>
             
-            {/* Right side - Actions */}
-            <div className="flex items-center space-x-3 flex-shrink-0">
+            {/* Right: Actions */}
+            <div className="flex items-center gap-3 flex-shrink-0">
               <Button 
                 variant={regulation.inWorkspace ? "default" : "outline"}
                 onClick={onAddToWorkspace}
@@ -139,159 +150,166 @@ export function RegulationDetail({
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Navigation Tabs */}
+        {/* Clean Tab Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          <TabsList className="grid w-full grid-cols-4 bg-white shadow-sm border">
-            <TabsTrigger value="overview" className="flex items-center gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
-              <Info className="h-4 w-4" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="analysis" className="flex items-center gap-2 data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700">
-              <Brain className="h-4 w-4" />
-              AI Analysis
-            </TabsTrigger>
-            <TabsTrigger value="actions" className="flex items-center gap-2 data-[state=active]:bg-green-50 data-[state=active]:text-green-700">
-              <CheckCircle2 className="h-4 w-4" />
-              Actions ({completedTasks}/{totalTasks})
-            </TabsTrigger>
-            <TabsTrigger value="history" className="flex items-center gap-2 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-700">
-              <History className="h-4 w-4" />
-              History
-            </TabsTrigger>
-          </TabsList>
+          <div className="bg-white rounded-lg border border-gray-200 p-1">
+            <TabsList className="grid w-full grid-cols-4 bg-transparent gap-1">
+              <TabsTrigger 
+                value="overview" 
+                className="flex items-center gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-blue-200 rounded-md border border-transparent"
+              >
+                <Info className="h-4 w-4" />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger 
+                value="analysis" 
+                className="flex items-center gap-2 data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 data-[state=active]:border-purple-200 rounded-md border border-transparent"
+              >
+                <Brain className="h-4 w-4" />
+                AI Analysis
+              </TabsTrigger>
+              <TabsTrigger 
+                value="actions" 
+                className="flex items-center gap-2 data-[state=active]:bg-green-50 data-[state=active]:text-green-700 data-[state=active]:border-green-200 rounded-md border border-transparent"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Actions ({completedTasks}/{totalTasks})
+              </TabsTrigger>
+              <TabsTrigger 
+                value="history" 
+                className="flex items-center gap-2 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-700 data-[state=active]:border-orange-200 rounded-md border border-transparent"
+              >
+                <History className="h-4 w-4" />
+                History
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-          {/* Overview Tab */}
+          {/* Overview Tab - Clean Layout */}
           <TabsContent value="overview" className="space-y-8">
-            <div className="grid gap-8 lg:grid-cols-3">
-              {/* Main Content - 2 columns */}
-              <div className="lg:col-span-2 space-y-6">
-                {/* Key Information Card */}
-                <Card className="shadow-sm">
-                  <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-                    <CardTitle className="flex items-center gap-2 text-xl">
-                      <FileText className="h-6 w-6 text-blue-600" />
-                      Regulation Information
+            <div className="grid gap-8 lg:grid-cols-12">
+              {/* Main Content - 8 columns */}
+              <div className="lg:col-span-8 space-y-6">
+                {/* Regulation Details - Clean Card */}
+                <Card className="border-gray-200">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg font-semibold text-gray-900">
+                      Regulation Details
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="p-6">
-                    <div className="grid gap-6">
-                      {/* Basic Details */}
-                      <div className="grid md:grid-cols-2 gap-6">
-                        <div className="space-y-4">
-                          <div className="flex flex-col space-y-1">
-                            <span className="text-sm font-medium text-gray-500 uppercase tracking-wide">Number</span>
-                            <span className="text-lg font-semibold text-gray-900">{regulation.number}</span>
-                          </div>
-                          <div className="flex flex-col space-y-1">
-                            <span className="text-sm font-medium text-gray-500 uppercase tracking-wide">Established</span>
-                            <span className="text-base text-gray-900">
-                              {new Date(regulation.establishedDate).toLocaleDateString('en-US', { 
-                                day: 'numeric', 
-                                month: 'long', 
-                                year: 'numeric' 
-                              })}
-                            </span>
-                          </div>
-                          <div className="flex flex-col space-y-1">
-                            <span className="text-sm font-medium text-gray-500 uppercase tracking-wide">Promulgated</span>
-                            <span className="text-base text-gray-900">
-                              {new Date(regulation.promulgatedDate).toLocaleDateString('en-US', { 
-                                day: 'numeric', 
-                                month: 'long', 
-                                year: 'numeric' 
-                              })}
-                            </span>
-                          </div>
+                  <CardContent className="space-y-6">
+                    {/* Key Information Grid */}
+                    <div className="grid md:grid-cols-2 gap-x-8 gap-y-6">
+                      <div className="space-y-4">
+                        <div>
+                          <dt className="text-sm font-medium text-gray-500 mb-1">Number</dt>
+                          <dd className="text-base font-semibold text-gray-900">{regulation.number}</dd>
                         </div>
-                        <div className="space-y-4">
-                          <div className="flex flex-col space-y-1">
-                            <span className="text-sm font-medium text-gray-500 uppercase tracking-wide">Location</span>
-                            <div className="flex items-center gap-2 text-base text-gray-900">
-                              <MapPin className="h-4 w-4 text-gray-400" />
-                              {regulation.location}
-                            </div>
-                          </div>
-                          <div className="flex flex-col space-y-1">
-                            <span className="text-sm font-medium text-gray-500 uppercase tracking-wide">Status</span>
-                            <div>
-                              <Badge variant={getStatusColor(regulation.status)} className="text-sm px-3 py-1">
-                                {regulation.status.toUpperCase()}
-                              </Badge>
-                            </div>
-                          </div>
-                          <div className="flex flex-col space-y-1">
-                            <span className="text-sm font-medium text-gray-500 uppercase tracking-wide">Source</span>
-                            <span className="text-base text-gray-900">{regulation.source || 'Official Gazette'}</span>
-                          </div>
+                        <div>
+                          <dt className="text-sm font-medium text-gray-500 mb-1">Established</dt>
+                          <dd className="text-base text-gray-900">
+                            {new Date(regulation.establishedDate).toLocaleDateString('en-US', { 
+                              day: 'numeric', 
+                              month: 'long', 
+                              year: 'numeric' 
+                            })}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-sm font-medium text-gray-500 mb-1">Promulgated</dt>
+                          <dd className="text-base text-gray-900">
+                            {new Date(regulation.promulgatedDate).toLocaleDateString('en-US', { 
+                              day: 'numeric', 
+                              month: 'long', 
+                              year: 'numeric' 
+                            })}
+                          </dd>
                         </div>
                       </div>
-
-                      {/* About Section */}
-                      <div className="pt-4 border-t">
-                        <div className="flex flex-col space-y-2">
-                          <span className="text-sm font-medium text-gray-500 uppercase tracking-wide">About</span>
-                          <p className="text-base text-gray-900 leading-relaxed">{regulation.about}</p>
+                      
+                      <div className="space-y-4">
+                        <div>
+                          <dt className="text-sm font-medium text-gray-500 mb-1">Location</dt>
+                          <dd className="text-base text-gray-900">{regulation.location}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-sm font-medium text-gray-500 mb-1">Status</dt>
+                          <dd>
+                            <Badge variant={getStatusColor(regulation.status)} className="text-sm">
+                              {regulation.status.toUpperCase()}
+                            </Badge>
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-sm font-medium text-gray-500 mb-1">Source</dt>
+                          <dd className="text-base text-gray-900">Official Gazette</dd>
                         </div>
                       </div>
-
-                      {/* Revoked Regulations */}
-                      {regulation.revokedRegulations && regulation.revokedRegulations.length > 0 && (
-                        <div className="pt-4 border-t">
-                          <div className="flex flex-col space-y-3">
-                            <div className="flex items-center gap-2">
-                              <AlertTriangle className="h-5 w-5 text-amber-500" />
-                              <span className="text-sm font-medium text-gray-900 uppercase tracking-wide">Revoked Regulations</span>
-                            </div>
-                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                              {regulation.revokedRegulations.map((revokedReg, index) => (
-                                <div key={index} className="text-sm text-amber-800 font-medium">
-                                  {revokedReg}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </div>
+
+                    {/* About Section */}
+                    <div className="pt-6 border-t border-gray-200">
+                      <dt className="text-sm font-medium text-gray-500 mb-3">About</dt>
+                      <dd className="text-base text-gray-900 leading-relaxed">{regulation.about}</dd>
+                    </div>
+
+                    {/* Revoked Regulations */}
+                    {regulation.revokedRegulations && regulation.revokedRegulations.length > 0 && (
+                      <div className="pt-6 border-t border-gray-200">
+                        <div className="flex items-center gap-2 mb-3">
+                          <AlertTriangle className="h-5 w-5 text-amber-500" />
+                          <dt className="text-sm font-medium text-gray-900">Revoked Regulations</dt>
+                        </div>
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                          {regulation.revokedRegulations.map((revokedReg, index) => (
+                            <dd key={index} className="text-sm text-amber-800 font-medium">
+                              {revokedReg}
+                            </dd>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
                 {/* Description Card */}
-                <Card className="shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Description</CardTitle>
+                <Card className="border-gray-200">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg font-semibold text-gray-900">
+                      Description
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-gray-700 leading-relaxed text-base">{regulation.description}</p>
+                    <p className="text-base text-gray-700 leading-relaxed">{regulation.description}</p>
                   </CardContent>
                 </Card>
               </div>
 
-              {/* Sidebar - 1 column */}
-              <div className="space-y-6">
-                {/* Sector Impact Analysis */}
-                <Card className="shadow-sm">
-                  <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
+              {/* Sidebar - 4 columns */}
+              <div className="lg:col-span-4 space-y-6">
+                {/* Sector Impact - Clean Design */}
+                <Card className="border-gray-200">
+                  <CardHeader className="pb-4">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg flex items-center gap-2">
+                      <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                         <TrendingUp className="h-5 w-5 text-green-600" />
                         Sector Impact
                       </CardTitle>
-                      {isEditing && <Badge variant="outline" className="text-xs">Editing Mode</Badge>}
+                      {isEditing && <Badge variant="outline" className="text-xs">Edit Mode</Badge>}
                     </div>
                   </CardHeader>
-                  <CardContent className="p-6 space-y-4">
+                  <CardContent className="space-y-4">
                     {regulation.impactedSectors.map((sectorImpact, index) => (
-                      <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+                      <div key={index} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                         <div className="space-y-3">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
-                              <h4 className="font-medium text-gray-900 text-sm leading-tight">{sectorImpact.sector}</h4>
-                              <div className="flex items-center gap-2 mt-1">
+                              <h4 className="font-medium text-gray-900 text-sm mb-1">{sectorImpact.sector}</h4>
+                              <div className="flex items-center gap-2">
+                                <Brain className="h-3 w-3 text-blue-500" />
                                 <span className="text-xs text-gray-500">
                                   {Math.round(sectorImpact.aiConfidence * 100)}% AI confidence
                                 </span>
-                                <Brain className="h-3 w-3 text-blue-500" />
                               </div>
                             </div>
                           </div>
@@ -320,35 +338,13 @@ export function RegulationDetail({
                         </div>
                       </div>
                     ))}
-                    
-                    {isEditing && (
-                      <div className="pt-2 border-t">
-                        <Select onValueChange={(value) => {
-                          console.log('Add sector:', value);
-                        }}>
-                          <SelectTrigger className="h-9">
-                            <SelectValue placeholder="+ Add new sector..." />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-48">
-                            {REGULATION_SECTORS
-                              .filter(sector => !regulation.impactedSectors.some(s => s.sector === sector))
-                              .map(sector => (
-                                <SelectItem key={sector} value={sector}>
-                                  {sector}
-                                </SelectItem>
-                              ))
-                            }
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
 
                 {/* Quick Stats */}
-                <Card className="shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
+                <Card className="border-gray-200">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                       <Eye className="h-5 w-5 text-blue-600" />
                       Quick Stats
                     </CardTitle>
@@ -360,18 +356,17 @@ export function RegulationDetail({
                         <span className="text-sm font-medium text-gray-900">
                           {regulation.viewedAt ? new Date(regulation.viewedAt).toLocaleDateString('en-US', {
                             day: 'numeric',
-                            month: 'short',
-                            year: 'numeric'
+                            month: 'short'
                           }) : 'Never'}
                         </span>
                       </div>
                       <div className="flex items-center justify-between py-2">
                         <span className="text-sm text-gray-600">Total views</span>
-                        <Badge variant="outline" className="text-xs font-medium">3 times</Badge>
+                        <Badge variant="outline" className="text-xs">3 times</Badge>
                       </div>
                       <div className="flex items-center justify-between py-2">
                         <span className="text-sm text-gray-600">Workspace status</span>
-                        <Badge variant={regulation.inWorkspace ? "default" : "secondary"} className="text-xs font-medium">
+                        <Badge variant={regulation.inWorkspace ? "default" : "secondary"} className="text-xs">
                           {regulation.inWorkspace ? "Active" : "Not Added"}
                         </Badge>
                       </div>
@@ -396,8 +391,8 @@ export function RegulationDetail({
 
           {/* AI Analysis Tab */}
           <TabsContent value="analysis" className="space-y-6">
-            <Card className="shadow-sm">
-              <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50">
+            <Card className="border-gray-200">
+              <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-t-lg">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-xl">
                     <Brain className="h-6 w-6 text-purple-600" />
@@ -516,8 +511,8 @@ export function RegulationDetail({
 
           {/* Action Items Tab */}
           <TabsContent value="actions" className="space-y-6">
-            <Card className="shadow-sm">
-              <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
+            <Card className="border-gray-200">
+              <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-lg">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-xl">
                     <CheckCircle2 className="h-6 w-6 text-green-600" />
@@ -598,8 +593,8 @@ export function RegulationDetail({
 
           {/* History Tab */}
           <TabsContent value="history" className="space-y-6">
-            <Card className="shadow-sm">
-              <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50">
+            <Card className="border-gray-200">
+              <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-t-lg">
                 <CardTitle className="flex items-center gap-2 text-xl">
                   <History className="h-6 w-6 text-orange-600" />
                   Activity Timeline
