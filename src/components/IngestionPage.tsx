@@ -162,7 +162,8 @@ export function IngestionPage({ onBack }: IngestionPageProps) {
         .insert({
           filename: selectedFile.name,
           file_size: selectedFile.size,
-          status: 'pending'
+          status: 'pending',
+          created_by: null // Allow null for anonymous users
         })
         .select()
         .single();
