@@ -47,7 +47,7 @@ export default function App() {
           />
         )}
         {activeMenu === "upload-peraturan" && (
-          <IngestionPage onBack={handleBackFromUpload} />
+          <IngestionPage />
         )}
         {activeMenu === "settings" && (
           <Settings onBack={handleBackFromSettings} />
