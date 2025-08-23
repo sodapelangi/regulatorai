@@ -48,42 +48,26 @@ export function Navigation({ activeMenu, onMenuChange }: NavigationProps) {
               </Badge>
             </Button>
             
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  <span>Settings</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onClick={() => onMenuChange("upload-peraturan")}>
-                  <Upload className="mr-2 h-4 w-4" />
-                  <span>Upload New Peraturan</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onMenuChange("upload-peraturan")}>
-                  <Database className="mr-2 h-4 w-4" />
-                  <span>Document Ingestion</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <FileText className="mr-2 h-4 w-4" />
-                  <span>Export Data</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onMenuChange("settings")}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>System Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sign Out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Direct buttons instead of dropdown for testing */}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => onMenuChange("upload-peraturan")}
+              className="flex items-center gap-2"
+            >
+              <Upload className="h-4 w-4" />
+              <span>Upload</span>
+            </Button>
+            
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => onMenuChange("settings")}
+              className="flex items-center gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              <span>Settings</span>
+            </Button>
           </div>
         </div>
       </div>
