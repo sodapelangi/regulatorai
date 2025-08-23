@@ -55,12 +55,12 @@ export function Navigation({ activeMenu, onMenuChange }: NavigationProps) {
                   <span className="sr-only">Open settings menu</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-56" sideOffset={5}>
                 <DropdownMenuItem onClick={() => onMenuChange("upload-peraturan")}>
                   <Upload className="mr-2 h-4 w-4" />
                   <span>Upload New Peraturan</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onMenuChange("settings")}>
+                <DropdownMenuItem onClick={() => onMenuChange("upload-peraturan")}>
                   <Database className="mr-2 h-4 w-4" />
                   <span>Document Ingestion</span>
                 </DropdownMenuItem>
