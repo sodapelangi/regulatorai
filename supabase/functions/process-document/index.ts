@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
       .eq('id', jobId)
 
     // Call chunker service
-    const chunkerUrl = Deno.env.get('CHUNKER_SERVICE_URL') || 'http://localhost:8000'
+    const chunkerUrl = Deno.env.get('CHUNKER_SERVICE_URL') || 'http://host.docker.internal:8000'
     
     console.log(`Calling chunker service at ${chunkerUrl}`)
     
