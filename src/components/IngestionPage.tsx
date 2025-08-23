@@ -46,7 +46,11 @@ interface DocumentMetadata {
   instansi?: string;
 }
 
-export function IngestionPage() {
+interface IngestionPageProps {
+  onBack?: () => void;
+}
+
+export function IngestionPage({ onBack }: IngestionPageProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [extractedText, setExtractedText] = useState<string>("");
   const [documentMetadata, setDocumentMetadata] = useState<DocumentMetadata>({

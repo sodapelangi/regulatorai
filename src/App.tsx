@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Navigation } from "./components/Navigation";
 import { Dashboard } from "./components/Dashboard";
 import { IntelligenceWorkspace } from "./components/IntelligenceWorkspace";
-import { UploadPeraturan } from "./components/UploadPeraturan";
+import { IngestionPage } from "./components/IngestionPage";
 import { Settings } from "./components/Settings";
 import { Toaster } from "./components/ui/sonner";
 
@@ -47,7 +47,7 @@ export default function App() {
           />
         )}
         {activeMenu === "upload-peraturan" && (
-          <UploadPeraturan onBack={handleBackFromUpload} />
+          <IngestionPage onBack={handleBackFromUpload} />
         )}
         {activeMenu === "settings" && (
           <Settings onBack={handleBackFromSettings} />
