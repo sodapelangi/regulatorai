@@ -41,21 +41,21 @@ export function Navigation({ activeMenu, onMenuChange }: NavigationProps) {
             </div>
           </div>
           <div className="flex items-center space-x-3">
-          
             <Button variant="ghost" size="sm" className="relative">
               <Bell className="h-4 w-4" />
               <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center">
                 3
               </Badge>
             </Button>
+            
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <Button variant="ghost" size="sm" className="flex items-center gap-2">
                   <Settings className="h-4 w-4" />
-                  <span className="sr-only">Open settings menu</span>
+                  <span>Settings</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56" sideOffset={5}>
+              <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem onClick={() => onMenuChange("upload-peraturan")}>
                   <Upload className="mr-2 h-4 w-4" />
                   <span>Upload New Peraturan</span>
