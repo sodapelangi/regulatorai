@@ -1,5 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -44,7 +43,7 @@ interface GeminiEmbeddingResponse {
   }
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -64,12 +63,18 @@ serve(async (req) => {
     console.log(`Processing document for job ${jobId}`)
 
     // Update job status to processing
-    await supabase.rpc('update_job_progress', {
-      job_id: jobId,
-      new_stage: 'processing',
-      new_progress: 5,
-      new_message: 'Starting document processing'
-    })
+    await supabase
+      .from('ingestion_jobs')
+      .update({
+        status: 'processing',
+        progress: JSON.stringify({
+          stage: 'processing',
+          progress: 5,
+          message: 'Starting document processing'
+        }),
+        started_at: new Date().toISOString()
+      })
+      .eq('id', jobId)
 
     // Call chunker service
     const chunkerUrl = Deno.env.get('CHUNKER_SERVICE_URL') || 'http://localhost:8000'
@@ -110,12 +115,18 @@ serve(async (req) => {
           const progress = await progressResponse.json()
           
           // Update our job progress based on chunker progress
-          await supabase.rpc('update_job_progress', {
-            job_id: jobId,
-            new_stage: progress.stage,
-            new_progress: Math.min(progress.progress * 0.7, 70), // Reserve 30% for embedding/storage
-            new_message: progress.message
-          })
+          await supabase
+            .from('ingestion_jobs')
+            .update({
+              progress: JSON.stringify({
+                stage: progress.stage,
+                progress: Math.min(progress.progress * 0.7, 70),
+                message: progress.message,
+                current_chunk: progress.current_chunk,
+                total_chunks: progress.total_chunks
+              })
+            })
+            .eq('id', jobId)
           
           if (progress.stage === 'completed') {
             const resultResponse = await fetch(`${chunkerUrl}/job/${chunkerJobId}/result`)
@@ -137,12 +148,16 @@ serve(async (req) => {
       chunkerResult.summary = finalResult.summary
     }
 
-    await supabase.rpc('update_job_progress', {
-      job_id: jobId,
-      new_stage: 'storing',
-      new_progress: 75,
-      new_message: 'Storing regulation metadata'
-    })
+    await supabase
+      .from('ingestion_jobs')
+      .update({
+        progress: JSON.stringify({
+          stage: 'storing',
+          progress: 75,
+          message: 'Storing regulation metadata'
+        })
+      })
+      .eq('id', jobId)
 
     // Parse dates
     const parseIndonesianDate = (dateStr: string): string | null => {
@@ -172,20 +187,17 @@ serve(async (req) => {
     const { data: regulation, error: regError } = await supabase
       .from('regulations')
       .insert({
-        jenis_peraturan: chunkerResult.metadata.judul?.split(' ')[0] || 'PERATURAN',
-        instansi: chunkerResult.metadata.judul?.includes('MENTERI') ? 'MENTERI' : 'PEMERINTAH',
+        jenis_peraturan: chunkerResult.metadata.document_type || 'PERATURAN',
+        instansi: chunkerResult.metadata.jabatan_penandatangan || 'PEMERINTAH',
         judul_lengkap: chunkerResult.metadata.judul || filename,
         nomor: chunkerResult.metadata.nomor,
         tahun: chunkerResult.metadata.tahun ? parseInt(chunkerResult.metadata.tahun) : new Date().getFullYear(),
         tentang: chunkerResult.metadata.tentang,
-        menimbang: chunkerResult.metadata.menimbang || [],
-        mengingat: chunkerResult.metadata.mengingat || [],
+        menimbang: JSON.stringify(chunkerResult.metadata.menimbang || []),
+        mengingat: JSON.stringify(chunkerResult.metadata.mengingat || []),
         document_type: chunkerResult.metadata.document_type || 'Peraturan',
         tanggal_penetapan: parseIndonesianDate(chunkerResult.metadata.tanggal_penetapan || ''),
         tanggal_pengundangan: parseIndonesianDate(chunkerResult.metadata.tanggal_penetapan || ''), // Fallback
-        tempat_penetapan: chunkerResult.metadata.tempat_penetapan,
-        jabatan_penandatangan: chunkerResult.metadata.jabatan_penandatangan,
-        nama_penandatangan: chunkerResult.metadata.nama_penandatangan,
         full_text: documentText,
         status: 'active'
       })
@@ -199,12 +211,16 @@ serve(async (req) => {
 
     console.log(`Created regulation record: ${regulation.id}`)
 
-    await supabase.rpc('update_job_progress', {
-      job_id: jobId,
-      new_stage: 'embedding',
-      new_progress: 80,
-      new_message: 'Generating embeddings for chunks'
-    })
+    await supabase
+      .from('ingestion_jobs')
+      .update({
+        progress: JSON.stringify({
+          stage: 'embedding',
+          progress: 80,
+          message: 'Generating embeddings for chunks'
+        })
+      })
+      .eq('id', jobId)
 
     // Generate embeddings and store chunks
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
@@ -221,12 +237,18 @@ serve(async (req) => {
       
       // Update progress
       const chunkProgress = 80 + (15 * (i + 1) / chunkerResult.chunks.length)
-      await supabase.rpc('update_job_progress', {
-        job_id: jobId,
-        new_stage: 'embedding',
-        new_progress: chunkProgress,
-        new_message: `Processing chunk ${i + 1}/${chunkerResult.chunks.length}: ${chunk.title}`
-      })
+      await supabase
+        .from('ingestion_jobs')
+        .update({
+          progress: JSON.stringify({
+            stage: 'embedding',
+            progress: chunkProgress,
+            message: `Processing chunk ${i + 1}/${chunkerResult.chunks.length}: ${chunk.title}`,
+            current_chunk: i + 1,
+            total_chunks: chunkerResult.chunks.length
+          })
+        })
+        .eq('id', jobId)
 
       let embedding: number[] | null = null
 
@@ -275,7 +297,6 @@ serve(async (req) => {
         chunk_type: chunk.chunk_type,
         content: chunk.content,
         title: chunk.title,
-        section_number: chunk.section_number,
         parent_section: parentChunkId,
         embedding: embedding,
         word_count: chunk.content.split(/\s+/).length,
@@ -300,12 +321,16 @@ serve(async (req) => {
     }
 
     // Update job as completed
-    await supabase.rpc('update_job_progress', {
-      job_id: jobId,
-      new_stage: 'completed',
-      new_progress: 100,
-      new_message: `Successfully processed ${chunkerResult.chunks.length} chunks`
-    })
+    await supabase
+      .from('ingestion_jobs')
+      .update({
+        progress: JSON.stringify({
+          stage: 'completed',
+          progress: 100,
+          message: `Successfully processed ${chunkerResult.chunks.length} chunks`
+        })
+      })
+      .eq('id', jobId)
 
     await supabase
       .from('ingestion_jobs')
@@ -336,7 +361,9 @@ serve(async (req) => {
 
     // Update job as failed if we have jobId
     try {
-      const { jobId } = await req.json()
+      const body = await req.clone().json()
+      const jobId = body.jobId
+      
       if (jobId) {
         const supabase = createClient(
           Deno.env.get('SUPABASE_URL') ?? '',
