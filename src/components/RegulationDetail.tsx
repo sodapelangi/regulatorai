@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Separator } from "./ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { ScrollArea } from "./ui/scroll-area";
-import { Brain, Edit2, ArrowLeft, BookmarkPlus, User, Calendar, CheckCircle2, Clock, AlertTriangle, Plus, Info, FileText, MapPin, History, Eye, Settings, MessageSquare, Send, Users, ExternalLink, Search } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { Brain, Edit2, ArrowLeft, BookmarkPlus, User, Calendar, CheckCircle2, Clock, AlertTriangle, Plus, Info, FileText, MapPin, History, Eye, Settings, MessageSquare, Send, Users, ExternalLink, Search, Shield, TrendingUp } from "lucide-react";
 import { DetailedRegulation, REGULATION_SECTORS } from "../data/mockData";
 import { useState } from "react";
 
@@ -30,15 +31,7 @@ export function RegulationDetail({
   const [isEditing, setIsEditing] = useState(false);
   const [newChecklistItem, setNewChecklistItem] = useState("");
   const [checklist, setChecklist] = useState(regulation.checklist);
-  const [chatMessage, setChatMessage] = useState("");
-  const [chatHistory, setChatHistory] = useState([
-    {
-      id: "1",
-      sender: "ai",
-      message: "Hello! I'm your AI Legal Analyst Assistant. I can help you understand the implications of this regulation. What would you like to know?",
-      timestamp: new Date().toISOString()
-    }
-  ]);
+  const [activeTab, setActiveTab] = useState("overview");
 
   const getImportanceColor = (importance: string) => {
     switch (importance) {
@@ -79,476 +72,534 @@ export function RegulationDetail({
     onToggleChecklistItem(itemId);
   };
 
-  const handleSendMessage = () => {
-    if (chatMessage.trim()) {
-      const userMessage = {
-        id: Date.now().toString(),
-        sender: "user",
-        message: chatMessage.trim(),
-        timestamp: new Date().toISOString()
-      };
-
-      // Simulate AI response
-      const aiResponse = {
-        id: (Date.now() + 1).toString(),
-        sender: "ai",
-        message: "Based on this regulation, I recommend reviewing your current compliance framework. The increased penalties and reporting requirements will significantly impact your operations. Would you like me to suggest specific action items?",
-        timestamp: new Date().toISOString()
-      };
-
-      setChatHistory([...chatHistory, userMessage, aiResponse]);
-      setChatMessage("");
-    }
-  };
+  const completedTasks = checklist.filter(item => item.completed).length;
+  const totalTasks = checklist.length;
+  const completionPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to List
-          </Button>
-          <div>
-            <h1>{regulation.title}</h1>
-          </div>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button 
-            variant={regulation.inWorkspace ? "default" : "outline"}
-            onClick={onAddToWorkspace}
-            disabled={regulation.inWorkspace}
-          >
-            <BookmarkPlus className="h-4 w-4 mr-2" />
-            {regulation.inWorkspace ? "In Workspace" : "Add to Workspace"}
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={() => setIsEditing(!isEditing)}
-          >
-            <Edit2 className="h-4 w-4 mr-2" />
-            {isEditing ? "Done Editing" : "Edit"}
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-4">
-        <div className="lg:col-span-2 space-y-6">
-          {/* Enhanced Metadata */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-blue-500" />
-                Regulation Metadata
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <div>
-                    <span className="font-medium">Number:</span>
-                    <p className="text-muted-foreground">{regulation.number}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium">Established:</span>
-                    <p className="text-muted-foreground">{new Date(regulation.establishedDate).toLocaleDateString('id-ID', { 
-                      day: 'numeric', 
-                      month: 'long', 
-                      year: 'numeric' 
-                    })}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium">Promulgated:</span>
-                    <p className="text-muted-foreground">{new Date(regulation.promulgatedDate).toLocaleDateString('id-ID', { 
-                      day: 'numeric', 
-                      month: 'long', 
-                      year: 'numeric' 
-                    })}</p>
-                  </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
+      {/* Enhanced Header */}
+      <div className="bg-white border-b shadow-sm sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Button variant="ghost" onClick={onBack} className="flex items-center gap-2 hover:bg-slate-100">
+                <ArrowLeft className="h-4 w-4" />
+                Back to List
+              </Button>
+              <div className="h-6 w-px bg-gray-300" />
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <FileText className="h-5 w-5 text-blue-600" />
                 </div>
-                <div className="space-y-3">
-                  <div>
-                    <span className="font-medium">Location:</span>
-                    <p className="text-muted-foreground flex items-center gap-1">
-                      <MapPin className="h-4 w-4" />
-                      {regulation.location}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="font-medium">About:</span>
-                    <p className="text-muted-foreground">{regulation.about}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium">Status:</span>
-                    <Badge variant={getStatusColor(regulation.status)} className="ml-2">
+                <div>
+                  <h1 className="text-xl font-semibold text-gray-900 leading-tight">
+                    {regulation.title}
+                  </h1>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-sm text-gray-500">{regulation.number}</span>
+                    <Badge variant={getStatusColor(regulation.status)} className="text-xs">
                       {regulation.status}
                     </Badge>
                   </div>
                 </div>
               </div>
-              
-              {regulation.revokedRegulations && regulation.revokedRegulations.length > 0 && (
-                <>
-                  <Separator />
-                  <div>
-                    <span className="font-medium">Revoked Regulations:</span>
-                    <div className="mt-2 space-y-1">
-                      {regulation.revokedRegulations.map((revokedReg, index) => (
-                        <p key={index} className="text-sm text-muted-foreground bg-red-50 dark:bg-red-950/20 p-2 rounded border border-red-200 dark:border-red-800">
-                          {revokedReg}
-                        </p>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <Button 
+                variant={regulation.inWorkspace ? "default" : "outline"}
+                onClick={onAddToWorkspace}
+                disabled={regulation.inWorkspace}
+                className="flex items-center gap-2"
+              >
+                <BookmarkPlus className="h-4 w-4" />
+                {regulation.inWorkspace ? "In Workspace" : "Add to Workspace"}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsEditing(!isEditing)}
+                className="flex items-center gap-2"
+              >
+                <Edit2 className="h-4 w-4" />
+                {isEditing ? "Done" : "Edit"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
 
-          {/* AI Analysis - Consolidated */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Brain className="h-5 w-5 text-blue-500" />
-                AI Analysis
-                <Badge variant="outline" className="ml-auto">
-                  {Math.round(regulation.aiAnalysis.confidence * 100)}% confidence
-                </Badge>
-              </CardTitle>
-              <p className="text-sm text-muted-foreground italic">
-                Disclaimer: AI Analysis is provided for guidance only. Always verify regulations interpretation with legal experts.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Background */}
-              <div>
-                <h4 className="font-medium mb-3">Background</h4>
-                <p className="text-sm text-muted-foreground leading-relaxed">{regulation.aiAnalysis.background}</p>
-              </div>
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Navigation Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4 bg-white shadow-sm">
+            <TabsTrigger value="overview" className="flex items-center gap-2">
+              <Info className="h-4 w-4" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="analysis" className="flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              AI Analysis
+            </TabsTrigger>
+            <TabsTrigger value="actions" className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4" />
+              Action Items ({completedTasks}/{totalTasks})
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-2">
+              <History className="h-4 w-4" />
+              History
+            </TabsTrigger>
+          </TabsList>
 
-              <Separator />
-
-              {/* Key Points */}
-              <div>
-                <h4 className="font-medium mb-3">Key Points</h4>
-                <div className="space-y-3">
-                  {regulation.aiAnalysis.keyPoints.map((point, index) => (
-                    <div key={index} className="border rounded-lg p-3">
-                      <div className="flex items-start gap-3">
-                        <Badge variant="outline" className="text-xs">{point.article}</Badge>
-                        <div className="flex-1">
-                          <h5 className="font-medium text-sm">{point.title}</h5>
-                          <p className="text-sm text-muted-foreground mt-1">{point.description}</p>
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-3">
+              {/* Main Content - 2 columns */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Key Metadata Card */}
+                <Card className="shadow-sm border-0 bg-white">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <FileText className="h-5 w-5 text-blue-600" />
+                      Regulation Details
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-start">
+                          <span className="text-sm font-medium text-gray-600">Number</span>
+                          <span className="text-sm font-semibold text-gray-900">{regulation.number}</span>
+                        </div>
+                        <div className="flex justify-between items-start">
+                          <span className="text-sm font-medium text-gray-600">Established</span>
+                          <span className="text-sm text-gray-900">
+                            {new Date(regulation.establishedDate).toLocaleDateString('en-US', { 
+                              day: 'numeric', 
+                              month: 'long', 
+                              year: 'numeric' 
+                            })}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-start">
+                          <span className="text-sm font-medium text-gray-600">Promulgated</span>
+                          <span className="text-sm text-gray-900">
+                            {new Date(regulation.promulgatedDate).toLocaleDateString('en-US', { 
+                              day: 'numeric', 
+                              month: 'long', 
+                              year: 'numeric' 
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-start">
+                          <span className="text-sm font-medium text-gray-600">Location</span>
+                          <div className="flex items-center gap-1 text-sm text-gray-900">
+                            <MapPin className="h-3 w-3" />
+                            {regulation.location}
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-start">
+                          <span className="text-sm font-medium text-gray-600">About</span>
+                          <span className="text-sm text-gray-900 text-right max-w-xs">{regulation.about}</span>
+                        </div>
+                        <div className="flex justify-between items-start">
+                          <span className="text-sm font-medium text-gray-600">Status</span>
+                          <Badge variant={getStatusColor(regulation.status)}>
+                            {regulation.status}
+                          </Badge>
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
+                    
+                    {regulation.revokedRegulations && regulation.revokedRegulations.length > 0 && (
+                      <>
+                        <Separator className="my-6" />
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 text-amber-500" />
+                            Revoked Regulations
+                          </h4>
+                          <div className="space-y-2">
+                            {regulation.revokedRegulations.map((revokedReg, index) => (
+                              <div key={index} className="text-sm text-gray-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                                {revokedReg}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Description Card */}
+                <Card className="shadow-sm border-0 bg-white">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Description</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-gray-700 leading-relaxed">{regulation.description}</p>
+                  </CardContent>
+                </Card>
               </div>
 
-              <Separator />
-
-              {/* Old and New Comparison Table */}
-              <div>
-                <h4 className="font-medium mb-3">What Changed - Side by Side Comparison</h4>
-                <div className="border rounded-lg overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-24">Article</TableHead>
-                        <TableHead className="text-red-600">Previous Version</TableHead>
-                        <TableHead className="text-green-600">Current Version</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {regulation.aiAnalysis.oldNewComparison.map((comparison, index) => (
-                        <TableRow key={index}>
-                          <TableCell className="font-medium">{comparison.article}</TableCell>
-                          <TableCell className="text-sm bg-red-50 dark:bg-red-950/20">
-                            {comparison.oldText}
-                          </TableCell>
-                          <TableCell className="text-sm bg-green-50 dark:bg-green-950/20">
-                            {comparison.newText}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Why It Matters For Business */}
-              <div>
-                <h4 className="font-medium mb-3">Why It Matters For Business</h4>
-                <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-                  <p className="text-sm leading-relaxed whitespace-pre-line">{regulation.aiAnalysis.whyItMattersForBusiness}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Action Checklist */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Action Checklist</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {checklist.map((item) => (
-                <div key={item.id} className="flex items-center space-x-3 p-3 border rounded">
-                  <Checkbox
-                    checked={item.completed}
-                    onCheckedChange={() => handleToggleChecklistItem(item.id)}
-                  />
-                  <div className="flex-1">
+              {/* Sidebar - 1 column */}
+              <div className="space-y-6">
+                {/* Sector Impact Analysis */}
+                <Card className="shadow-sm border-0 bg-white">
+                  <CardHeader className="pb-4">
                     <div className="flex items-center justify-between">
-                      <p className={`text-sm ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
-                        {item.task}
-                      </p>
-                      {item.isAiGenerated && (
-                        <Badge variant="secondary" className="text-xs ml-2">
-                          Generate by AI
-                        </Badge>
-                      )}
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5 text-green-600" />
+                        Sector Impact
+                      </CardTitle>
+                      {isEditing && <Badge variant="outline" className="text-xs">Editing</Badge>}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {regulation.impactedSectors.map((sectorImpact, index) => (
+                      <div key={index} className="space-y-3 p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-gray-900 text-sm">{sectorImpact.sector}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500">
+                              {Math.round(sectorImpact.aiConfidence * 100)}% AI confidence
+                            </span>
+                            <Brain className="h-3 w-3 text-blue-500" />
+                          </div>
+                        </div>
+                        
+                        {isEditing ? (
+                          <Select 
+                            value={sectorImpact.importance} 
+                            onValueChange={(value) => onUpdateSectorImpact(index, value)}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="low">Low Impact</SelectItem>
+                              <SelectItem value="medium">Medium Impact</SelectItem>
+                              <SelectItem value="high">High Impact</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge variant={getImportanceColor(sectorImpact.importance)} className="text-xs">
+                            {sectorImpact.importance} impact
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                    
+                    {isEditing && (
+                      <div className="pt-2">
+                        <Select onValueChange={(value) => {
+                          console.log('Add sector:', value);
+                        }}>
+                          <SelectTrigger className="h-8">
+                            <SelectValue placeholder="Add new sector..." />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-48">
+                            {REGULATION_SECTORS
+                              .filter(sector => !regulation.impactedSectors.some(s => s.sector === sector))
+                              .map(sector => (
+                                <SelectItem key={sector} value={sector}>
+                                  {sector}
+                                </SelectItem>
+                              ))
+                            }
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Quick Stats */}
+                <Card className="shadow-sm border-0 bg-white">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Eye className="h-5 w-5 text-blue-600" />
+                      Quick Stats
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Last viewed</span>
+                      <span className="font-medium">
+                        {regulation.viewedAt ? new Date(regulation.viewedAt).toLocaleDateString('en-US', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric'
+                        }) : 'Never'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Total views</span>
+                      <Badge variant="outline" className="text-xs">3 times</Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Workspace status</span>
+                      <Badge variant={regulation.inWorkspace ? "default" : "secondary"} className="text-xs">
+                        {regulation.inWorkspace ? "Active" : "Not Added"}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* AI Analysis Tab */}
+          <TabsContent value="analysis" className="space-y-6">
+            <Card className="shadow-sm border-0 bg-white">
+              <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Brain className="h-5 w-5 text-blue-600" />
+                    AI Analysis
+                  </CardTitle>
+                  <Badge variant="outline" className="bg-white">
+                    {Math.round(regulation.aiAnalysis.confidence * 100)}% confidence
+                  </Badge>
+                </div>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-4">
+                  <div className="flex items-start gap-2">
+                    <Shield className="h-4 w-4 text-amber-600 mt-0.5" />
+                    <p className="text-sm text-amber-800">
+                      <strong>Disclaimer:</strong> AI Analysis is provided for guidance only. Always verify regulations interpretation with legal experts.
+                    </p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-8 p-6">
+                {/* Background */}
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Info className="h-4 w-4 text-blue-600" />
+                    Background
+                  </h3>
+                  <p className="text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-lg">
+                    {regulation.aiAnalysis.background}
+                  </p>
+                </div>
+
+                <Separator />
+
+                {/* Key Points */}
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    Key Points
+                  </h3>
+                  <div className="space-y-4">
+                    {regulation.aiAnalysis.keyPoints.map((point, index) => (
+                      <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+                        <div className="flex items-start gap-3">
+                          <Badge variant="outline" className="text-xs font-mono">{point.article}</Badge>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900 mb-2">{point.title}</h4>
+                            <p className="text-sm text-gray-700 leading-relaxed">{point.description}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Comparison Table */}
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-purple-600" />
+                    What Changed - Side by Side Comparison
+                  </h3>
+                  <div className="border rounded-lg overflow-hidden bg-white">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-gray-50">
+                          <TableHead className="w-20 font-semibold">Article</TableHead>
+                          <TableHead className="text-red-700 font-semibold">Previous Version</TableHead>
+                          <TableHead className="text-green-700 font-semibold">Current Version</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {regulation.aiAnalysis.oldNewComparison.map((comparison, index) => (
+                          <TableRow key={index} className="hover:bg-gray-50">
+                            <TableCell className="font-medium text-center bg-gray-50">
+                              <Badge variant="outline" className="font-mono text-xs">
+                                {comparison.article}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-sm bg-red-50 border-l-2 border-red-200">
+                              {comparison.oldText}
+                            </TableCell>
+                            <TableCell className="text-sm bg-green-50 border-l-2 border-green-200">
+                              {comparison.newText}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Business Impact */}
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-orange-600" />
+                    Why It Matters For Business
+                  </h3>
+                  <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-6">
+                    <p className="text-gray-800 leading-relaxed whitespace-pre-line">
+                      {regulation.aiAnalysis.whyItMattersForBusiness}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Action Items Tab */}
+          <TabsContent value="actions" className="space-y-6">
+            <Card className="shadow-sm border-0 bg-white">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    Action Checklist
+                  </CardTitle>
+                  <div className="flex items-center gap-3">
+                    <div className="text-sm text-gray-600">
+                      {completedTasks} of {totalTasks} completed ({completionPercentage}%)
+                    </div>
+                    <div className="w-24 bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-green-500 h-2 rounded-full transition-all duration-300" 
+                        style={{ width: `${completionPercentage}%` }}
+                      />
                     </div>
                   </div>
-                  {item.completed ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <Clock className="h-4 w-4 text-orange-500" />
-                  )}
                 </div>
-              ))}
-              
-              {/* Add new checklist item */}
-              <div className="flex gap-2 pt-3 border-t">
-                <Input
-                  placeholder="Add new action item..."
-                  value={newChecklistItem}
-                  onChange={(e) => setNewChecklistItem(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleAddChecklistItem();
-                    }
-                  }}
-                />
-                <Button onClick={handleAddChecklistItem} size="sm">
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Sidebar - AI Chat */}
-        <div className="lg:col-span-1 space-y-6">
-        </div>
-
-        {/* Left Sidebar */}
-        <div className="lg:col-span-1 space-y-6">
-          {/* Sector Impact (Editable) */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                Sector Impact Analysis
-                {isEditing && <Badge variant="outline">Editing Mode</Badge>}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {regulation.impactedSectors.map((sectorImpact, index) => (
-                <div key={index} className="space-y-2 p-3 border rounded">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">{sectorImpact.sector}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {Math.round(sectorImpact.aiConfidence * 100)}% AI confidence
-                    </span>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {checklist.map((item) => (
+                  <div key={item.id} className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                    <Checkbox
+                      checked={item.completed}
+                      onCheckedChange={() => handleToggleChecklistItem(item.id)}
+                      className="mt-1"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <p className={`text-sm ${item.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+                          {item.task}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          {item.isAiGenerated && (
+                            <Badge variant="secondary" className="text-xs">
+                              <Brain className="h-3 w-3 mr-1" />
+                              AI Generated
+                            </Badge>
+                          )}
+                          {item.completed ? (
+                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Clock className="h-4 w-4 text-orange-500" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  
-                  {isEditing ? (
-                    <Select 
-                      value={sectorImpact.importance} 
-                      onValueChange={(value) => onUpdateSectorImpact(index, value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="low">Low Impact</SelectItem>
-                        <SelectItem value="medium">Medium Impact</SelectItem>
-                        <SelectItem value="high">High Impact</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Badge variant={getImportanceColor(sectorImpact.importance)}>
-                      {sectorImpact.importance} impact
-                    </Badge>
-                  )}
-                </div>
-              ))}
-              
-              {isEditing && (
-                <div className="space-y-2">
-                  <Select onValueChange={(value) => {
-                    // Add new sector logic would go here
-                    console.log('Add sector:', value);
-                  }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Add new sector..." />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-48">
-                      {REGULATION_SECTORS
-                        .filter(sector => !regulation.impactedSectors.some(s => s.sector === sector))
-                        .map(sector => (
-                          <SelectItem key={sector} value={sector}>
-                            {sector}
-                          </SelectItem>
-                        ))
+                ))}
+                
+                {/* Add new item */}
+                <div className="flex gap-2 pt-4 border-t">
+                  <Input
+                    placeholder="Add new action item..."
+                    value={newChecklistItem}
+                    onChange={(e) => setNewChecklistItem(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleAddChecklistItem();
                       }
-                    </SelectContent>
-                  </Select>
+                    }}
+                    className="flex-1"
+                  />
+                  <Button onClick={handleAddChecklistItem} size="sm" className="flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    Add
+                  </Button>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-          {/* History Workspace */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <History className="h-5 w-5 text-blue-500" />
-                History Workspace
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* View History */}
-              <div>
-                <h4 className="font-medium mb-3 flex items-center gap-2">
-                  <Eye className="h-4 w-4" />
-                  View History
-                </h4>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded">
-                    <span>Last viewed</span>
-                    <span className="text-muted-foreground">
-                      {regulation.viewedAt ? new Date(regulation.viewedAt).toLocaleString('id-ID', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      }) : 'Never'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded">
-                    <span>Total views</span>
-                    <Badge variant="outline">3 times</Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded">
-                    <span>First viewed</span>
-                    <span className="text-muted-foreground">15 Aug 2024</span>
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Edit History for Sector Impact */}
-              <div>
-                <h4 className="font-medium mb-3 flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  Edit History
-                </h4>
-                <div className="space-y-2">
-                  <div className="p-2 border rounded text-sm">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium">Sector Impact Analysis</span>
-                      <span className="text-xs text-muted-foreground">18 Aug 2024, 14:30</span>
+          {/* History Tab */}
+          <TabsContent value="history" className="space-y-6">
+            <Card className="shadow-sm border-0 bg-white">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <History className="h-5 w-5 text-blue-600" />
+                  Activity History
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Timeline */}
+                <div className="space-y-4">
+                  <div className="flex items-start gap-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="p-2 bg-green-100 rounded-full">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
                     </div>
-                    <p className="text-muted-foreground text-xs">
-                      Changed "Manufacturing" sector from medium to high impact
-                    </p>
-                  </div>
-                  <div className="p-2 border rounded text-sm">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium">Manual Action Added</span>
-                      <span className="text-xs text-muted-foreground">17 Aug 2024, 09:15</span>
-                    </div>
-                    <p className="text-muted-foreground text-xs">
-                      Added: "Consult with environmental law expert"
-                    </p>
-                  </div>
-                  <div className="p-2 border rounded text-sm">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium">Added to Workspace</span>
-                      <span className="text-xs text-muted-foreground">16 Aug 2024, 11:20</span>
-                    </div>
-                    <p className="text-muted-foreground text-xs">
-                      Regulation added to personal workspace
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Manual Action Checklist History */}
-              <div>
-                <h4 className="font-medium mb-3 flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  Manual Actions Log
-                </h4>
-                <div className="space-y-2">
-                  <div className="flex items-start gap-3 p-2 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded text-sm">
-                    <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5" />
                     <div className="flex-1">
-                      <p className="font-medium">Consult with environmental law expert</p>
-                      <p className="text-xs text-muted-foreground">Completed on 18 Aug 2024 - Added manually</p>
+                      <h4 className="font-medium text-green-900">Action Completed</h4>
+                      <p className="text-sm text-green-700 mt-1">Consult with environmental law expert</p>
+                      <p className="text-xs text-green-600 mt-2">18 Aug 2024, 14:30 • Manual action</p>
                     </div>
                   </div>
-                  <div className="flex items-start gap-3 p-2 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded text-sm">
-                    <Clock className="h-4 w-4 text-orange-500 mt-0.5" />
+
+                  <div className="flex items-start gap-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="p-2 bg-blue-100 rounded-full">
+                      <Edit2 className="h-4 w-4 text-blue-600" />
+                    </div>
                     <div className="flex-1">
-                      <p className="font-medium">Schedule board meeting for compliance review</p>
-                      <p className="text-xs text-muted-foreground">Added on 17 Aug 2024 - Manual addition</p>
+                      <h4 className="font-medium text-blue-900">Sector Impact Updated</h4>
+                      <p className="text-sm text-blue-700 mt-1">Changed "Manufacturing" sector from medium to high impact</p>
+                      <p className="text-xs text-blue-600 mt-2">18 Aug 2024, 14:30</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="p-2 bg-gray-100 rounded-full">
+                      <Plus className="h-4 w-4 text-gray-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-900">Manual Action Added</h4>
+                      <p className="text-sm text-gray-700 mt-1">Added: "Schedule board meeting for compliance review"</p>
+                      <p className="text-xs text-gray-600 mt-2">17 Aug 2024, 09:15</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                    <div className="p-2 bg-purple-100 rounded-full">
+                      <BookmarkPlus className="h-4 w-4 text-purple-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-purple-900">Added to Workspace</h4>
+                      <p className="text-sm text-purple-700 mt-1">Regulation added to personal workspace</p>
+                      <p className="text-xs text-purple-600 mt-2">16 Aug 2024, 11:20</p>
                     </div>
                   </div>
                 </div>
-              </div>
-
-              <Separator />
-
-              {/* Timeline Summary */}
-              <div>
-                <h4 className="font-medium mb-3 flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Timeline Summary
-                </h4>
-                <div className="space-y-1 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span>Regulation effective</span>
-                    <span className="text-muted-foreground">{new Date(regulation.establishedDate).toLocaleDateString('id-ID')}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>First discovered</span>
-                    <span className="text-muted-foreground">15 Aug 2024</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Last activity</span>
-                    <span className="text-muted-foreground">18 Aug 2024</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Workspace status</span>
-                    <Badge variant={regulation.inWorkspace ? "default" : "secondary"} className="text-xs">
-                      {regulation.inWorkspace ? "Active" : "Not Added"}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
