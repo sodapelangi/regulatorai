@@ -50,8 +50,9 @@ export function Navigation({ activeMenu, onMenuChange }: NavigationProps) {
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                   <Settings className="h-4 w-4" />
+                  <span className="sr-only">Open settings menu</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
