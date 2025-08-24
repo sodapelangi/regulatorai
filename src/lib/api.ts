@@ -224,6 +224,78 @@ export const recentRegulationsApi = {
         total_pages: Math.ceil((count || 0) / (options.limit || 20))
       }
     };
+  },
+
+  // Get dashboard metrics from actual data
+  async getDashboardMetrics() {
+    // Get total regulations count
+    const { count: totalRegulations, error: totalError } = await supabase
+      .from('regulations')
+      .select('*', { count: 'exact', head: true });
+
+    if (totalError) {
+      console.warn('Failed to get total regulations:', totalError);
+    }
+
+    // Get today's uploads
+    const today = new Date().toISOString().split('T')[0];
+    const { count: dailyUpdates, error: dailyError } = await supabase
+      .from('regulations')
+      .select('*', { count: 'exact', head: true })
+      .gte('upload_date', today);
+
+    if (dailyError) {
+      console.warn('Failed to get daily updates:', dailyError);
+    }
+
+    // Get high impact regulations by sector
+    const { data: regulations, error: regError } = await supabase
+      .from('regulations')
+      .select('sector_impacts');
+
+    if (regError) {
+      console.warn('Failed to get sector impacts:', regError);
+    }
+
+    // Count high impact by sector
+    const highImpactRegulations: Record<string, number> = {};
+    regulations?.forEach(reg => {
+      if (reg.sector_impacts && Array.isArray(reg.sector_impacts)) {
+        reg.sector_impacts.forEach((impact: any) => {
+          if (impact.impact_level === 'High') {
+            const sector = impact.sector;
+            highImpactRegulations[sector] = (highImpactRegulations[sector] || 0) + 1;
+          }
+        });
+      }
+    });
+
+    // Generate weekly trend (simplified - last 7 days)
+    const weeklyTrend = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      const { count: dayRegulations } = await supabase
+        .from('regulations')
+        .select('*', { count: 'exact', head: true })
+        .gte('upload_date', dateStr)
+        .lt('upload_date', new Date(date.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+
+      weeklyTrend.push({
+        date: dateStr,
+        regulations: dayRegulations || 0,
+        highImpact: Math.floor((dayRegulations || 0) * 0.3) // Estimate 30% high impact
+      });
+    }
+
+    return {
+      totalRegulations: totalRegulations || 0,
+      dailyUpdates: dailyUpdates || 0,
+      highImpactRegulations,
+      weeklyTrend
+    };
   }
 };
 

@@ -10,7 +10,6 @@ import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Info, Plus, CheckCircle2, Calendar } from "lucide-react";
-import { mockMetrics, mockRegulations } from "../data/mockData";
 import { workspaceApi, viewTrackingApi, recentRegulationsApi } from "../lib/api";
 import { toast } from "sonner";
 
@@ -28,9 +27,10 @@ interface TodoItem {
 
 export function Dashboard({ onViewRegulation }: DashboardProps) {
   const [timePeriod, setTimePeriod] = useState("7d");
-  const [currentPage, setCurrentPage] = useState(1);
   const [regulations, setRegulations] = useState<any[]>([]);
+  const [metrics, setMetrics] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [metricsLoading, setMetricsLoading] = useState(true);
   const [newTodoTask, setNewTodoTask] = useState("");
   const [todos, setTodos] = useState<TodoItem[]>([
     { id: "1", task: "Review new financial regulations impact", completed: false, dueDate: "2024-08-25", priority: "high" },
@@ -38,21 +38,17 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
     { id: "3", task: "Schedule team meeting on digital regulations", completed: false, dueDate: "2024-08-22", priority: "medium" },
   ]);
 
-  const regulationsPerPage = 5;
-  const totalPages = Math.ceil(regulations.length / regulationsPerPage);
-  const startIndex = (currentPage - 1) * regulationsPerPage;
-  const currentRegulations = regulations.slice(startIndex, startIndex + regulationsPerPage);
-
   // Load recent regulations on component mount
   useEffect(() => {
     loadRecentRegulations();
+    loadDashboardMetrics();
   }, []);
 
   const loadRecentRegulations = async () => {
     try {
       setLoading(true);
       const response = await recentRegulationsApi.getRecentRegulations({
-        limit: 20
+        limit: 10
       });
       
       // Transform data to match expected format
@@ -79,6 +75,19 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
     }
   };
   const handleAddTodo = () => {
+  const loadDashboardMetrics = async () => {
+    try {
+      setMetricsLoading(true);
+      const metricsData = await recentRegulationsApi.getDashboardMetrics();
+      setMetrics(metricsData);
+    } catch (error) {
+      console.error('Failed to load dashboard metrics:', error);
+      toast.error('Failed to load dashboard metrics');
+    } finally {
+      setMetricsLoading(false);
+    }
+  };
+
   // Transform AI sector impacts to expected format
   const transformSectorImpacts = (sectorImpacts: any) => {
     if (!sectorImpacts || !Array.isArray(sectorImpacts)) {
@@ -91,6 +100,7 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
       aiConfidence: impact.confidence || 0.8
     }));
   };
+
     if (newTodoTask.trim()) {
       const newTodo: TodoItem = {
         id: Date.now().toString(),
@@ -152,33 +162,6 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
       onViewRegulation(regulationId);
     }
   };
-  // Filter metrics based on time period (simplified for demo)
-  const getFilteredMetrics = () => {
-    let multiplier = 1;
-    switch (timePeriod) {
-      case "1d": multiplier = 0.2; break;
-      case "7d": multiplier = 1; break;
-      case "30d": multiplier = 4; break;
-      case "90d": multiplier = 12; break;
-    }
-    
-    // Create new object with multiplied values for all sectors
-    const multipliedHighImpact = Object.fromEntries(
-      Object.entries(mockMetrics.highImpactRegulations).map(([sector, count]) => [
-        sector,
-        Math.max(1, Math.round(count * multiplier))
-      ])
-    );
-    
-    return {
-      ...mockMetrics,
-      dailyUpdates: Math.round(mockMetrics.dailyUpdates * multiplier),
-      totalRegulations: Math.round(mockMetrics.totalRegulations * multiplier),
-      highImpactRegulations: multipliedHighImpact
-    };
-  };
-
-  const filteredMetrics = getFilteredMetrics();
 
   return (
     <div className="space-y-8">
@@ -237,12 +220,30 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
       </div>
 
       {/* Metrics Cards */}
-      <MetricsCards metrics={filteredMetrics} />
+      {metricsLoading ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map(i => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-6">
+                <div className="h-20 bg-gray-200 rounded"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : metrics ? (
+        <MetricsCards metrics={metrics} />
+      ) : (
+        <div className="text-center py-8 text-muted-foreground">
+          Failed to load metrics
+        </div>
+      )}
 
       {/* Charts Section */}
-      <div className="grid gap-6">
-        <SectorImpactChart metrics={filteredMetrics} />
-      </div>
+      {!metricsLoading && metrics && (
+        <div className="grid gap-6">
+          <SectorImpactChart metrics={metrics} />
+        </div>
+      )}
 
       {/* Recent Regulations List with Pagination */}
       <Card className="border-2 border-gray-100">
@@ -250,7 +251,7 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
           <div className="flex items-center justify-between">
             <CardTitle className="text-xl">Recent Regulations</CardTitle>
             <Badge variant="secondary" className="text-xs">
-              {mockRegulations.length} total regulations
+              {regulations.length} regulations
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">
@@ -259,13 +260,10 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
         </CardHeader>
         <CardContent className="p-6">
           <RegulationsList 
-            regulations={currentRegulations} 
+            regulations={regulations} 
             onViewRegulation={handleViewRegulation}
             onAddToWorkspace={handleAddToWorkspace}
-            showPagination={true}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
+            showPagination={false}
             loading={loading}
           />
         </CardContent>
