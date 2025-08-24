@@ -360,7 +360,7 @@ Deno.serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Error processing document:', error)
+  console.error('Error processing document:', error)
 
     // Update job as failed if we have jobId
     try {
