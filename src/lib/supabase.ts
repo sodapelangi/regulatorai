@@ -29,6 +29,14 @@ export type Database = {
           status: 'active' | 'draft' | 'proposed' | 'revoked';
           upload_date: string;
           full_text: string | null;
+          tempat_penetapan: string | null;
+          jabatan_penandatangan: string | null;
+          nama_penandatangan: string | null;
+          search_vector: unknown | null;
+          ai_analysis: unknown | null;
+          sector_impacts: unknown | null;
+          analysis_confidence: number | null;
+          last_analyzed_at: string | null;
         };
         Insert: {
           id?: string;
@@ -46,6 +54,14 @@ export type Database = {
           status?: 'active' | 'draft' | 'proposed' | 'revoked';
           upload_date?: string;
           full_text?: string | null;
+          tempat_penetapan?: string | null;
+          jabatan_penandatangan?: string | null;
+          nama_penandatangan?: string | null;
+          search_vector?: unknown | null;
+          ai_analysis?: unknown | null;
+          sector_impacts?: unknown | null;
+          analysis_confidence?: number | null;
+          last_analyzed_at?: string | null;
         };
         Update: {
           id?: string;
@@ -63,6 +79,14 @@ export type Database = {
           status?: 'active' | 'draft' | 'proposed' | 'revoked';
           upload_date?: string;
           full_text?: string | null;
+          tempat_penetapan?: string | null;
+          jabatan_penandatangan?: string | null;
+          nama_penandatangan?: string | null;
+          search_vector?: unknown | null;
+          ai_analysis?: unknown | null;
+          sector_impacts?: unknown | null;
+          analysis_confidence?: number | null;
+          last_analyzed_at?: string | null;
         };
       };
       document_chunks: {
