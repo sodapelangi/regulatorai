@@ -6,8 +6,10 @@ import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { Eye, Trash2, Edit2, Plus, Search, Calendar, User, AlertTriangle, Clock } from "lucide-react";
-import { mockRegulations, mockWorkspaceItems, WorkspaceItem } from "../data/mockData";
+import { mockRegulations, WorkspaceItem } from "../data/mockData";
+import { workspaceApi, viewTrackingApi } from "../lib/api";
 import { useState } from "react";
+import { toast } from "sonner";
 
 interface MyWorkspaceProps {
   onViewRegulation: (regulationId: string) => void;
@@ -17,14 +19,39 @@ export function MyWorkspace({ onViewRegulation }: MyWorkspaceProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
-  const [workspaceItems, setWorkspaceItems] = useState(mockWorkspaceItems);
+  const [workspaceItems, setWorkspaceItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
+  // Load workspace items on component mount
+  React.useEffect(() => {
+    loadWorkspaceItems();
+  }, []);
+
+  const loadWorkspaceItems = async () => {
+    try {
+      setLoading(true);
+      const response = await workspaceApi.getWorkspace();
+      setWorkspaceItems(response.data || []);
+    } catch (error) {
+      console.error('Failed to load workspace:', error);
+      toast.error('Failed to load workspace items');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getWorkspaceRegulations = () => {
-    return workspaceItems.map(item => {
-      const regulation = mockRegulations.find(r => r.id === item.regulationId);
-      return regulation ? { ...regulation, workspaceData: item } : null;
-    }).filter(Boolean);
+    return workspaceItems.map(item => ({
+      ...item.regulations,
+      workspaceData: {
+        regulationId: item.regulation_id,
+        addedAt: item.added_at,
+        priority: item.priority,
+        notes: item.notes,
+        status: item.status
+      }
+    }));
   };
 
   const filteredItems = getWorkspaceRegulations().filter(item => {
@@ -67,15 +94,48 @@ export function MyWorkspace({ onViewRegulation }: MyWorkspaceProps) {
   };
 
   const updateWorkspaceItem = (regulationId: string, updates: Partial<WorkspaceItem>) => {
-    setWorkspaceItems(items => 
-      items.map(item => 
-        item.regulationId === regulationId ? { ...item, ...updates } : item
-      )
-    );
+    const workspaceItem = workspaceItems.find(item => item.regulation_id === regulationId);
+    if (workspaceItem) {
+      handleUpdateWorkspaceItem(workspaceItem.id, updates);
+    }
   };
 
-  const removeFromWorkspace = (regulationId: string) => {
-    setWorkspaceItems(items => items.filter(item => item.regulationId !== regulationId));
+  const handleUpdateWorkspaceItem = async (workspaceId: string, updates: any) => {
+    try {
+      await workspaceApi.updateWorkspaceItem(workspaceId, updates);
+      await loadWorkspaceItems(); // Reload to get fresh data
+      toast.success('Workspace item updated');
+    } catch (error) {
+      console.error('Failed to update workspace item:', error);
+      toast.error('Failed to update workspace item');
+    }
+  };
+
+  const removeFromWorkspace = async (regulationId: string) => {
+    const workspaceItem = workspaceItems.find(item => item.regulation_id === regulationId);
+    if (!workspaceItem) return;
+
+    try {
+      await workspaceApi.removeFromWorkspace(workspaceItem.id);
+      await loadWorkspaceItems(); // Reload to get fresh data
+      toast.success('Removed from workspace');
+    } catch (error) {
+      console.error('Failed to remove from workspace:', error);
+      toast.error('Failed to remove from workspace');
+    }
+  };
+
+  const handleViewRegulation = async (regulationId: string) => {
+    // Record the view
+    try {
+      await viewTrackingApi.recordView(regulationId, {
+        source: 'workspace'
+      });
+    } catch (error) {
+      console.error('Failed to record view:', error);
+    }
+    
+    onViewRegulation(regulationId);
   };
 
   const formatTimeAgo = (dateString: string) => {
@@ -162,7 +222,16 @@ export function MyWorkspace({ onViewRegulation }: MyWorkspaceProps) {
 
       {/* Workspace Items */}
       <div className="space-y-4">
-        {filteredItems.length === 0 ? (
+        {loading ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <div className="text-center space-y-2">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="text-muted-foreground">Loading workspace...</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : filteredItems.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <div className="text-center space-y-2">
