@@ -185,6 +185,11 @@ export function IngestionPage({ onBack }: IngestionPageProps) {
       // Start polling for progress
       pollJobProgress(job.id);
       
+      // Trigger AI analysis after successful processing
+      if (job.regulation_id) {
+        triggerAIAnalysis(job.regulation_id);
+      }
+      
     } catch (error) {
       console.error('Processing error:', error);
       toast.error(`Processing failed: ${error.message}`);
@@ -195,6 +200,26 @@ export function IngestionPage({ onBack }: IngestionPageProps) {
         ...stage,
         status: stage.status === 'processing' ? 'error' : stage.status
       })));
+    }
+  };
+
+  const triggerAIAnalysis = async (regulationId: string) => {
+    try {
+      console.log(`Triggering AI analysis for regulation ${regulationId}`);
+      
+      const { error } = await supabase.functions.invoke('analyze-regulation', {
+        body: { regulation_id: regulationId }
+      });
+
+      if (error) {
+        console.error('AI analysis failed:', error);
+        toast.error('Document processed but AI analysis failed');
+      } else {
+        console.log('AI analysis completed successfully');
+        toast.success('Document processed and analyzed successfully!');
+      }
+    } catch (error) {
+      console.error('AI analysis error:', error);
     }
   };
 
@@ -225,7 +250,13 @@ export function IngestionPage({ onBack }: IngestionPageProps) {
           clearInterval(pollInterval);
           setIsProcessing(false);
           setActiveTab("results");
-          toast.success("Document processed successfully!");
+          
+          // Trigger AI analysis after processing completes
+          if (job.regulation_id) {
+            triggerAIAnalysis(job.regulation_id);
+          } else {
+            toast.success("Document processed successfully!");
+          }
         } else if (job.status === 'failed') {
           clearInterval(pollInterval);
           setIsProcessing(false);

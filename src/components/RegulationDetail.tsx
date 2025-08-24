@@ -12,6 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Progress } from "./ui/progress";
 import { Brain, Edit2, ArrowLeft, BookmarkPlus, User, Calendar, CheckCircle2, Clock, AlertTriangle, Plus, Info, FileText, MapPin, History, Eye, Settings, MessageSquare, Send, Users, ExternalLink, Search, Shield, TrendingUp, Building2, Gavel, AlertCircleIcon } from "lucide-react";
 import { DetailedRegulation, REGULATION_SECTORS } from "../data/mockData";
+import { supabase } from "../lib/supabase";
+import { toast } from "sonner";
 import { useState } from "react";
 
 interface RegulationDetailProps {
@@ -33,6 +35,8 @@ export function RegulationDetail({
   const [newChecklistItem, setNewChecklistItem] = useState("");
   const [checklist, setChecklist] = useState(regulation.checklist);
   const [activeTab, setActiveTab] = useState("overview");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState(regulation.aiAnalysis);
 
   const getImportanceColor = (importance: string) => {
     switch (importance) {
@@ -71,6 +75,41 @@ export function RegulationDetail({
       item.id === itemId ? { ...item, completed: !item.completed } : item
     ));
     onToggleChecklistItem(itemId);
+  };
+
+  const handleReanalyze = async () => {
+    setIsAnalyzing(true);
+    try {
+      const { error } = await supabase.functions.invoke('analyze-regulation', {
+        body: { regulation_id: regulation.id }
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      // Fetch updated analysis
+      const { data: updatedRegulation, error: fetchError } = await supabase
+        .from('regulations')
+        .select('ai_analysis, sector_impacts, analysis_confidence')
+        .eq('id', regulation.id)
+        .single();
+
+      if (fetchError) {
+        throw new Error(fetchError.message);
+      }
+
+      if (updatedRegulation.ai_analysis) {
+        setAiAnalysis(updatedRegulation.ai_analysis);
+        toast.success('AI analysis updated successfully');
+      }
+
+    } catch (error) {
+      console.error('Re-analysis error:', error);
+      toast.error(`Re-analysis failed: ${error.message}`);
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const completedTasks = checklist.filter(item => item.completed).length;
@@ -143,6 +182,15 @@ export function RegulationDetail({
               >
                 <Edit2 className="h-4 w-4" />
                 {isEditing ? "Done" : "Edit"}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={handleReanalyze}
+                disabled={isAnalyzing}
+                className="flex items-center gap-2"
+              >
+                <Brain className="h-4 w-4" />
+                {isAnalyzing ? "Analyzing..." : "Re-analyze"}
               </Button>
             </div>
           </div>
@@ -398,9 +446,16 @@ export function RegulationDetail({
                     <Brain className="h-6 w-6 text-purple-600" />
                     AI Analysis
                   </CardTitle>
-                  <Badge variant="outline" className="bg-white font-medium">
-                    {Math.round(regulation.aiAnalysis.confidence * 100)}% confidence
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="bg-white font-medium">
+                      {Math.round((aiAnalysis?.overall_confidence || regulation.aiAnalysis.confidence) * 100)}% confidence
+                    </Badge>
+                    {isAnalyzing && (
+                      <Badge variant="secondary" className="animate-pulse">
+                        Analyzing...
+                      </Badge>
+                    )}
+                  </div>
                 </div>
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
                   <div className="flex items-start gap-3">
@@ -422,7 +477,9 @@ export function RegulationDetail({
                     Background Context
                   </h3>
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-                    <p className="text-gray-700 leading-relaxed">{regulation.aiAnalysis.background}</p>
+                    <p className="text-gray-700 leading-relaxed">
+                      {aiAnalysis?.background || regulation.aiAnalysis.background}
+                    </p>
                   </div>
                 </div>
 
@@ -435,7 +492,7 @@ export function RegulationDetail({
                     Key Regulatory Points
                   </h3>
                   <div className="space-y-4">
-                    {regulation.aiAnalysis.keyPoints.map((point, index) => (
+                    {(aiAnalysis?.key_points || regulation.aiAnalysis.keyPoints).map((point, index) => (
                       <div key={index} className="border border-gray-200 rounded-lg p-6 hover:shadow-sm transition-shadow">
                         <div className="flex items-start gap-4">
                           <Badge variant="outline" className="text-xs font-mono font-medium px-3 py-1">
@@ -469,21 +526,30 @@ export function RegulationDetail({
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {regulation.aiAnalysis.oldNewComparison.map((comparison, index) => (
+                        {(aiAnalysis?.old_new_comparison || regulation.aiAnalysis.oldNewComparison)?.map((comparison, index) => (
                           <TableRow key={index} className="hover:bg-gray-50">
                             <TableCell className="font-medium text-center bg-gray-50 border-r">
                               <Badge variant="outline" className="font-mono text-xs">
-                                {comparison.article}
+                                {comparison.article || 'Art. N/A'}
                               </Badge>
                             </TableCell>
                             <TableCell className="text-sm bg-red-50 border-l-4 border-red-200 p-4">
-                              <p className="leading-relaxed">{comparison.oldText}</p>
+                              <p className="leading-relaxed">{comparison.old_text || comparison.oldText}</p>
                             </TableCell>
                             <TableCell className="text-sm bg-green-50 border-l-4 border-green-200 p-4">
-                              <p className="leading-relaxed">{comparison.newText}</p>
+                              <p className="leading-relaxed">{comparison.new_text || comparison.newText}</p>
                             </TableCell>
                           </TableRow>
-                        ))}
+                        )) || (
+                          <TableRow>
+                            <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                              {aiAnalysis?.old_new_comparison === null ? 
+                                "Previous regulation not available in system" : 
+                                "This regulation does not revoke or change other regulations"
+                              }
+                            </TableCell>
+                          </TableRow>
+                        )}
                       </TableBody>
                     </Table>
                   </div>
@@ -500,7 +566,7 @@ export function RegulationDetail({
                   <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-6">
                     <div className="prose prose-sm max-w-none">
                       <p className="text-gray-800 leading-relaxed whitespace-pre-line">
-                        {regulation.aiAnalysis.whyItMattersForBusiness}
+                        {aiAnalysis?.business_impact || regulation.aiAnalysis.whyItMattersForBusiness}
                       </p>
                     </div>
                   </div>
