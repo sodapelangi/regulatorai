@@ -110,12 +110,14 @@ export const viewTrackingApi = {
     limit?: number;
     offset?: number;
   } = {}) {
-    const params = new URLSearchParams();
-    if (options.limit) params.set('limit', options.limit.toString());
-    if (options.offset) params.set('offset', options.offset.toString());
+    const queryParams: Record<string, string> = {};
+    if (options.limit) queryParams.limit = options.limit.toString();
+    if (options.offset) queryParams.offset = options.offset.toString();
 
     const { data, error } = await supabase.functions.invoke('view-tracking', {
-      method: 'GET'
+      method: 'GET',
+      path: 'recent',
+      query: queryParams
     });
     
     if (error) throw error;
