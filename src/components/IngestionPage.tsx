@@ -137,10 +137,22 @@ export function IngestionPage({ onBack }: IngestionPageProps) {
   }, []);
 
   const processDocument = async () => {
-    if (!selectedFile) {
-      toast.error("Please select a document first");
-      return;
-    }
+  try {
+    const { data, error } = await supabase.functions.invoke('process-documents', {
+      body: {
+        jobId: 'your-job-id',
+        documentText: 'your-document-text',
+        filename: 'your-filename'
+      }
+    })
+    
+    if (error) throw error
+    
+    // Handle success
+  } catch (error) {
+    console.error('Processing error:', error)
+  }
+}
 
     setIsProcessing(true);
     setActiveTab("processing");
