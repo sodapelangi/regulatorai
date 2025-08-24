@@ -74,6 +74,33 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
       setLoading(false);
     }
   };
+
+  const loadDashboardMetrics = async () => {
+    try {
+      setMetricsLoading(true);
+      const metricsData = await recentRegulationsApi.getDashboardMetrics();
+      setMetrics(metricsData);
+    } catch (error) {
+      console.error('Failed to load dashboard metrics:', error);
+      toast.error('Failed to load dashboard metrics');
+    } finally {
+      setMetricsLoading(false);
+    }
+  };
+
+  // Transform AI sector impacts to expected format
+  const transformSectorImpacts = (sectorImpacts: any) => {
+    if (!sectorImpacts || !Array.isArray(sectorImpacts)) {
+      return [];
+    }
+    
+    return sectorImpacts.map(impact => ({
+      sector: impact.sector,
+      importance: impact.impact_level?.toLowerCase() || 'medium',
+      aiConfidence: impact.confidence || 0.8
+    }));
+  };
+
   const handleAddTodo = () => {
   const loadDashboardMetrics = async () => {
     try {
@@ -112,31 +139,6 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
       setNewTodoTask("");
     }
   };
-
-  const handleToggleTodo = (todoId: string) => {
-    setTodos(todos.map(todo => 
-      todo.id === todoId ? { ...todo, completed: !todo.completed } : todo
-    ));
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'destructive';
-      case 'medium': return 'default';
-      case 'low': return 'secondary';
-      default: return 'secondary';
-    }
-  };
-
-  const handleAddToWorkspace = async (regulationId: string) => {
-    try {
-      await workspaceApi.addToWorkspace(regulationId, {
-        priority: 'medium',
-        status: 'pending',
-        notes: ''
-      });
-      
-      // Update local state to show it's in workspace
       setRegulations(regulations.map(reg => 
         reg.id === regulationId ? { ...reg, inWorkspace: true } : reg
       ));
