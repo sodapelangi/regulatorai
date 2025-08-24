@@ -45,7 +45,9 @@ Deno.serve(async (req) => {
             upload_date,
             tanggal_penetapan,
             instansi,
-            status
+            status,
+            ai_analysis,
+            sector_impacts
           )
         `)
         .order('added_at', { ascending: false })

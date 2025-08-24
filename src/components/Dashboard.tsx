@@ -11,6 +11,8 @@ import { Badge } from "./ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Info, Plus, CheckCircle2, Calendar } from "lucide-react";
 import { mockMetrics, mockRegulations, mockDetailedRegulations } from "../data/mockData";
+import { workspaceApi, viewTrackingApi, regulationApi } from "../lib/api";
+import { toast } from "sonner";
 
 interface DashboardProps {
   onViewRegulation?: (regulationId: string) => void;
@@ -27,6 +29,8 @@ interface TodoItem {
 export function Dashboard({ onViewRegulation }: DashboardProps) {
   const [timePeriod, setTimePeriod] = useState("7d");
   const [currentPage, setCurrentPage] = useState(1);
+  const [regulations, setRegulations] = useState(mockRegulations);
+  const [loading, setLoading] = useState(false);
   const [newTodoTask, setNewTodoTask] = useState("");
   const [todos, setTodos] = useState<TodoItem[]>([
     { id: "1", task: "Review new financial regulations impact", completed: false, dueDate: "2024-08-25", priority: "high" },
@@ -35,10 +39,45 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
   ]);
 
   const regulationsPerPage = 5;
-  const totalPages = Math.ceil(mockRegulations.length / regulationsPerPage);
+  const totalPages = Math.ceil(regulations.length / regulationsPerPage);
   const startIndex = (currentPage - 1) * regulationsPerPage;
-  const currentRegulations = mockRegulations.slice(startIndex, startIndex + regulationsPerPage);
+  const currentRegulations = regulations.slice(startIndex, startIndex + regulationsPerPage);
 
+  // Load recent regulations on component mount
+  useEffect(() => {
+    loadRecentRegulations();
+  }, []);
+
+  const loadRecentRegulations = async () => {
+    try {
+      setLoading(true);
+      const response = await viewTrackingApi.getRecentRegulations({
+        limit: 20
+      });
+      
+      // Transform data to match expected format
+      const transformedRegulations = response.data.map(reg => ({
+        id: reg.id,
+        title: reg.judul_lengkap,
+        number: reg.nomor,
+        establishedDate: reg.tanggal_penetapan || reg.upload_date,
+        promulgatedDate: reg.tanggal_penetapan || reg.upload_date,
+        description: reg.tentang,
+        about: reg.tentang,
+        impactedSectors: reg.sector_impacts || [],
+        location: reg.instansi,
+        status: reg.status,
+        inWorkspace: reg.in_workspace
+      }));
+      
+      setRegulations(transformedRegulations);
+    } catch (error) {
+      console.error('Failed to load recent regulations:', error);
+      toast.error('Failed to load recent regulations');
+    } finally {
+      setLoading(false);
+    }
+  };
   const handleAddTodo = () => {
     if (newTodoTask.trim()) {
       const newTodo: TodoItem = {
@@ -67,14 +106,40 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
     }
   };
 
-  const handleAddToWorkspace = (regulationId: string) => {
-    // Update the regulation to show it's been added to workspace
-    const updatedRegulation = mockDetailedRegulations.find(r => r.id === regulationId);
-    if (updatedRegulation) {
-      updatedRegulation.inWorkspace = true;
+  const handleAddToWorkspace = async (regulationId: string) => {
+    try {
+      await workspaceApi.addToWorkspace(regulationId, {
+        priority: 'medium',
+        status: 'pending',
+        notes: ''
+      });
+      
+      // Update local state to show it's in workspace
+      setRegulations(regulations.map(reg => 
+        reg.id === regulationId ? { ...reg, inWorkspace: true } : reg
+      ));
+      
+      toast.success('Added to workspace successfully');
+    } catch (error) {
+      console.error('Failed to add to workspace:', error);
+      toast.error('Failed to add to workspace');
     }
   };
 
+  const handleViewRegulation = async (regulationId: string) => {
+    // Record the view
+    try {
+      await viewTrackingApi.recordView(regulationId, {
+        source: 'dashboard'
+      });
+    } catch (error) {
+      console.error('Failed to record view:', error);
+    }
+    
+    if (onViewRegulation) {
+      onViewRegulation(regulationId);
+    }
+  };
   // Filter metrics based on time period (simplified for demo)
   const getFilteredMetrics = () => {
     let multiplier = 1;
@@ -183,12 +248,13 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
         <CardContent className="p-6">
           <RegulationsList 
             regulations={currentRegulations} 
-            onViewRegulation={onViewRegulation}
+            onViewRegulation={handleViewRegulation}
             onAddToWorkspace={handleAddToWorkspace}
             showPagination={true}
             currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={setCurrentPage}
+            loading={loading}
           />
         </CardContent>
       </Card>

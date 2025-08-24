@@ -2,126 +2,75 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Textarea } from "./ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
-import { Eye, Trash2, Edit2, Plus, Search, Calendar, User, AlertTriangle, Clock } from "lucide-react";
-import { mockRegulations, WorkspaceItem } from "../data/mockData";
-import { workspaceApi, viewTrackingApi } from "../lib/api";
+import { Eye, Clock, ExternalLink, Search } from "lucide-react";
+import { viewTrackingApi } from "../lib/api";
 import { useState } from "react";
 import { toast } from "sonner";
 
-interface MyWorkspaceProps {
+interface HistoryPageProps {
   onViewRegulation: (regulationId: string) => void;
 }
 
-export function MyWorkspace({ onViewRegulation }: MyWorkspaceProps) {
+export function HistoryPage({ onViewRegulation }: HistoryPageProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [filterPriority, setFilterPriority] = useState("all");
-  const [workspaceItems, setWorkspaceItems] = useState<any[]>([]);
+  const [viewHistory, setViewHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
-  // Load workspace items on component mount
+  // Load view history on component mount
   React.useEffect(() => {
-    loadWorkspaceItems();
+    loadViewHistory();
   }, []);
 
-  const loadWorkspaceItems = async () => {
+  const loadViewHistory = async () => {
     try {
       setLoading(true);
-      const response = await workspaceApi.getWorkspace();
-      setWorkspaceItems(response.data || []);
+      const response = await viewTrackingApi.getViewHistory({
+        limit: 50,
+        search: searchTerm
+      });
+      setViewHistory(response.data || []);
     } catch (error) {
-      console.error('Failed to load workspace:', error);
-      toast.error('Failed to load workspace items');
+      console.error('Failed to load view history:', error);
+      toast.error('Failed to load view history');
     } finally {
       setLoading(false);
     }
   };
 
-  const getWorkspaceRegulations = () => {
-    return workspaceItems.map(item => ({
-      ...item.regulations,
-      workspaceData: {
-        regulationId: item.regulation_id,
-        addedAt: item.added_at,
-        priority: item.priority,
-        notes: item.notes,
-        status: item.status
+  // Reload when search term changes
+  React.useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (!loading) {
+        loadViewHistory();
       }
-    }));
-  };
+    }, 300);
 
-  const filteredItems = getWorkspaceRegulations().filter(item => {
-    if (!item) return false;
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
+
+  const filteredHistory = viewHistory.filter(item => 
+    item && item.judul_lengkap.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
     
-    const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.workspaceData.notes.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = filterStatus === "all" || item.workspaceData.status === filterStatus;
-    const matchesPriority = filterPriority === "all" || item.workspaceData.priority === filterPriority;
-
-    return matchesSearch && matchesStatus && matchesPriority;
-  });
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'destructive';
-      case 'medium': return 'default';
-      case 'low': return 'secondary';
-      default: return 'secondary';
-    }
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays === 1) return 'Yesterday';
+    if (diffInDays < 7) return `${diffInDays} days ago`;
+    return date.toLocaleDateString();
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return 'outline';
-      case 'in-progress': return 'default';
-      case 'pending': return 'secondary';
-      default: return 'secondary';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed': return null;
-      case 'in-progress': return <User className="h-4 w-4" />;
-      case 'pending': return <Clock className="h-4 w-4" />;
-      default: return null;
-    }
-  };
-
-  const updateWorkspaceItem = (regulationId: string, updates: Partial<WorkspaceItem>) => {
-    const workspaceItem = workspaceItems.find(item => item.regulation_id === regulationId);
-    if (workspaceItem) {
-      handleUpdateWorkspaceItem(workspaceItem.id, updates);
-    }
-  };
-
-  const handleUpdateWorkspaceItem = async (workspaceId: string, updates: any) => {
-    try {
-      await workspaceApi.updateWorkspaceItem(workspaceId, updates);
-      await loadWorkspaceItems(); // Reload to get fresh data
-      toast.success('Workspace item updated');
-    } catch (error) {
-      console.error('Failed to update workspace item:', error);
-      toast.error('Failed to update workspace item');
-    }
-  };
-
-  const removeFromWorkspace = async (regulationId: string) => {
-    const workspaceItem = workspaceItems.find(item => item.regulation_id === regulationId);
-    if (!workspaceItem) return;
-
-    try {
-      await workspaceApi.removeFromWorkspace(workspaceItem.id);
-      await loadWorkspaceItems(); // Reload to get fresh data
-      toast.success('Removed from workspace');
-    } catch (error) {
-      console.error('Failed to remove from workspace:', error);
-      toast.error('Failed to remove from workspace');
+      case 'active': return 'default';
+      case 'proposed': return 'secondary';
+      case 'draft': return 'outline';
+      default: return 'outline';
     }
   };
 
@@ -129,7 +78,7 @@ export function MyWorkspace({ onViewRegulation }: MyWorkspaceProps) {
     // Record the view
     try {
       await viewTrackingApi.recordView(regulationId, {
-        source: 'workspace'
+        source: 'history'
       });
     } catch (error) {
       console.error('Failed to record view:', error);
@@ -137,234 +86,108 @@ export function MyWorkspace({ onViewRegulation }: MyWorkspaceProps) {
     
     onViewRegulation(regulationId);
   };
-
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (diffInDays === 0) return 'Today';
-    if (diffInDays === 1) return 'Yesterday';
-    if (diffInDays < 7) return `${diffInDays} days ago`;
-    return date.toLocaleDateString();
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-2">
-          <h1>My Workspace</h1>
-          <p className="text-muted-foreground">
-            Manage and track your saved regulatory intelligence items
-          </p>
-        </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Regulation
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Regulation to Workspace</DialogTitle>
-              <DialogDescription>
-                Select regulations from the intelligence dashboard to add them to your personal workspace for tracking and management.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Select a regulation from the intelligence dashboard to add to your workspace.
-              </p>
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                Go to Dashboard
-              </Button>
+      <div className="space-y-2">
+        <h1>Recent View History</h1>
+        <p className="text-muted-foreground">
+          Track your recently viewed regulatory updates and analysis
+        </p>
+      </div>
+
+      {/* Search */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search viewed regulations..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
+      {/* History List */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            Recently Viewed Regulations
+            <Badge variant="secondary" className="text-xs">
+              Today's views: {viewHistory.length}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading view history...</p>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Filters */}
-      <div className="flex gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search workspace items..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="in-progress">In Progress</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filterPriority} onValueChange={setFilterPriority}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Priority" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Priority</SelectItem>
-            <SelectItem value="high">High</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="low">Low</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Workspace Items */}
-      <div className="space-y-4">
-        {loading ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <div className="text-center space-y-2">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                <p className="text-muted-foreground">Loading workspace...</p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : filteredItems.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <div className="text-center space-y-2">
-                <h3>No items in workspace</h3>
-                <p className="text-muted-foreground">
-                  {workspaceItems.length === 0 
-                    ? "Add regulations from the intelligence dashboard to start tracking them here."
-                    : "No items match your current filters."
-                  }
-                </p>
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add First Item
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredItems.map((item) => (
-            <Card key={item.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  {/* Header */}
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-2 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-medium">{item.title}</h3>
-                        <Badge variant={getPriorityColor(item.workspaceData.priority)}>
-                          {item.workspaceData.priority} priority
-                        </Badge>
-                        <Badge variant={getStatusColor(item.workspaceData.status)}>
-                          <div className="flex items-center gap-1">
-                            {getStatusIcon(item.workspaceData.status)}
-                            {item.workspaceData.status.replace('-', ' ')}
-                          </div>
-                        </Badge>
-                      </div>
-                      
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>Established: {new Date(item.establishedDate).toLocaleDateString()}</span>
-                        <span>Promulgated: {new Date(item.promulgatedDate).toLocaleDateString()}</span>
-                        <span>Location: {item.location}</span>
-                        <span>Added: {formatTimeAgo(item.workspaceData.addedAt)}</span>
-                      </div>
-                    </div>
-                    
+          ) : filteredHistory.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              {searchTerm ? 'No regulations match your search.' : 'No viewing history yet.'}
+            </div>
+          ) : (
+            filteredHistory.map((item) => (
+              <div key={item.id} className="border rounded-lg p-4 space-y-3 hover:bg-muted/50 transition-colors">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2 flex-1">
                     <div className="flex items-center gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => onViewRegulation(item.id)}
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        Details
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => removeFromWorkspace(item.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <h3 className="font-medium">{item.judul_lengkap}</h3>
                     </div>
-                  </div>
-
-                  {/* Description */}
-                  <p className="text-sm text-muted-foreground">{item.description}</p>
-
-                  {/* Sector Impacts */}
-                  <div className="flex flex-wrap gap-2">
-                    {item.impactedSectors.map((sectorImpact, index) => (
-                      <Badge 
-                        key={index}
-                        variant={sectorImpact.importance === 'high' ? 'destructive' : 
-                                sectorImpact.importance === 'medium' ? 'default' : 'secondary'}
-                        className="text-xs"
-                      >
-                        {sectorImpact.sector}: {sectorImpact.importance}
-                      </Badge>
-                    ))}
-                  </div>
-
-                  {/* Notes */}
-                  {item.workspaceData.notes && (
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-medium">Notes:</h4>
-                      <p className="text-sm text-muted-foreground bg-muted p-3 rounded">
-                        {item.workspaceData.notes}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Quick Actions */}
-                  <div className="flex items-center gap-2 pt-2 border-t">
-                    <Select 
-                      value={item.workspaceData.status} 
-                      onValueChange={(value) => updateWorkspaceItem(item.id, { status: value as any })}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="in-progress">In Progress</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                      </SelectContent>
-                    </Select>
                     
-                    <Select 
-                      value={item.workspaceData.priority} 
-                      onValueChange={(value) => updateWorkspaceItem(item.id, { priority: value as any })}
-                    >
-                      <SelectTrigger className="w-28">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <span>Year: {item.tahun}</span>
+                      <span>Number: {item.number}</span>
+                      <span>Authority: {item.instansi}</span>
+                    </div>
+                    
+                    <p className="text-sm text-muted-foreground">
+                      {item.tentang}
+                    </p>
 
-                    <Button variant="outline" size="sm">
-                      <Edit2 className="h-4 w-4 mr-1" />
-                      Edit Notes
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">
+                      </span>
+                    </div>
+
+                    {/* Sector Impacts */}
+                    <div className="flex flex-wrap gap-2">
+                      {item.impactedSectors.slice(0, 2).map((sectorImpact, index) => (
+                        <Badge 
+                          key={index}
+                          variant={sectorImpact.importance === 'high' ? 'destructive' : 
+                                  sectorImpact.importance === 'medium' ? 'default' : 'secondary'}
+                          className="text-xs"
+                        >
+                          {sectorImpact.sector}: {sectorImpact.importance}
+                        </Badge>
+                      ))}
+                      {item.impactedSectors.length > 2 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{item.impactedSectors.length - 2} more
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => onViewRegulation(item.id)}
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      View Details
                     </Button>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

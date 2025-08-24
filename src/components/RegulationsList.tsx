@@ -15,6 +15,7 @@ interface RegulationsListProps {
   currentPage?: number;
   totalPages?: number;
   onPageChange?: (page: number) => void;
+  loading?: boolean;
 }
 
 export function RegulationsList({ 
@@ -24,7 +25,8 @@ export function RegulationsList({
   showPagination = false,
   currentPage = 1,
   totalPages = 1,
-  onPageChange 
+  onPageChange,
+  loading = false
 }: RegulationsListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterSector, setFilterSector] = useState("all");
@@ -153,7 +155,12 @@ export function RegulationsList({
       )}
       
       <div className="space-y-4">
-        {filteredRegulations.map((regulation) => (
+        {loading ? (
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading regulations...</p>
+          </div>
+        ) : filteredRegulations.map((regulation) => (
           <Card key={regulation.id} className="hover:shadow-md transition-shadow">
             <CardContent className="p-6">
               <div className="space-y-4">
@@ -181,13 +188,13 @@ export function RegulationsList({
                       Details
                     </Button>
                     <Button 
-                      variant={addedToWorkspace.has(regulation.id) ? "default" : "ghost"} 
+                      variant={addedToWorkspace.has(regulation.id) || regulation.inWorkspace ? "default" : "ghost"} 
                       size="sm"
                       onClick={(e) => handleAddToWorkspace(regulation.id, e)}
-                      disabled={addedToWorkspace.has(regulation.id)}
+                      disabled={addedToWorkspace.has(regulation.id) || regulation.inWorkspace}
                     >
                       <BookmarkPlus className="h-4 w-4" />
-                      {addedToWorkspace.has(regulation.id) ? "Added" : ""}
+                      {addedToWorkspace.has(regulation.id) || regulation.inWorkspace ? "Added" : ""}
                     </Button>
                   </div>
                 </div>
