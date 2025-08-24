@@ -19,7 +19,9 @@ Deno.serve(async (req) => {
     )
 
     const url = new URL(req.url)
-    const pathParts = url.pathname.split('/').filter(Boolean)
+    const fullPathSegments = url.pathname.split('/').filter(Boolean)
+    // Remove 'functions', 'v1', and 'view-tracking' from the path
+    const pathParts = fullPathSegments.slice(3)
     const method = req.method
 
     // POST /view-tracking - Record a regulation view
@@ -70,7 +72,7 @@ Deno.serve(async (req) => {
     }
 
     // GET /view-tracking/history - Get today's view history
-    if (method === 'GET' && pathParts.length === 2 && pathParts[1] === 'history') {
+    if (method === 'GET' && pathParts.length === 1 && pathParts[0] === 'history') {
       const searchParams = url.searchParams
       const limit = parseInt(searchParams.get('limit') || '50')
       const offset = parseInt(searchParams.get('offset') || '0')
@@ -124,7 +126,7 @@ Deno.serve(async (req) => {
     }
 
     // GET /view-tracking/recent - Get recent regulations (last 30 days)
-    if (method === 'GET' && pathParts.length === 2 && pathParts[1] === 'recent') {
+    if (method === 'GET' && pathParts.length === 1 && pathParts[0] === 'recent') {
       const searchParams = url.searchParams
       const limit = parseInt(searchParams.get('limit') || '20')
       const offset = parseInt(searchParams.get('offset') || '0')
@@ -150,7 +152,7 @@ Deno.serve(async (req) => {
     }
 
     // GET /view-tracking/stats - Get view statistics
-    if (method === 'GET' && pathParts.length === 2 && pathParts[1] === 'stats') {
+    if (method === 'GET' && pathParts.length === 1 && pathParts[0] === 'stats') {
       // Get today's view count
       const { data: todayViews, error: todayError } = await supabase
         .from('regulation_views')
