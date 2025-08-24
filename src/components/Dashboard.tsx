@@ -10,7 +10,7 @@ import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Info, Plus, CheckCircle2, Calendar } from "lucide-react";
-import { mockMetrics } from "../data/mockData";
+import { mockMetrics, mockRegulations } from "../data/mockData";
 import { workspaceApi, viewTrackingApi, recentRegulationsApi } from "../lib/api";
 import { toast } from "sonner";
 
