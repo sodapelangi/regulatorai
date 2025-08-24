@@ -46,7 +46,6 @@ interface GeminiEmbeddingResponse {
 }
 
 Deno.serve(async (req) => {
-  // Handle preflight requests
   if (req.method === 'OPTIONS') {
     console.log('Handling OPTIONS preflight request')
     return new Response(null, { 
@@ -161,12 +160,7 @@ Deno.serve(async (req) => {
         }),
         started_at: new Date().toISOString()
       })
-      .eq('id', extractedJobId)
-
-    if (updateError) {
-      console.error('Error updating job status:', updateError)
-      throw new Error(`Failed to update job status: ${updateError.message}`)
-    }
+      .eq('id', jobId)
 
     // Call chunker service
     const chunkerUrl = Deno.env.get('CHUNKER_SERVICE_URL') || 'https://regulatoryai-331153911805.europe-west1.run.app'
@@ -314,8 +308,6 @@ Deno.serve(async (req) => {
         document_type: chunkerResult.metadata.document_type || 'Peraturan',
         tanggal_penetapan: parseIndonesianDate(chunkerResult.metadata.tanggal_penetapan || ''),
         tanggal_pengundangan: parseIndonesianDate(chunkerResult.metadata.tanggal_penetapan || ''), // Fallback
-        full_text: documentText,
-        status: 'active'
       })
       .select()
       .single()
@@ -413,7 +405,6 @@ Deno.serve(async (req) => {
         chunk_type: chunk.chunk_type,
         content: chunk.content,
         title: chunk.title,
-        parent_section: parentChunkId,
         embedding: embedding,
         word_count: chunk.content.split(/\s+/).length,
         character_count: chunk.content_length
@@ -478,8 +469,11 @@ Deno.serve(async (req) => {
     console.error('Error stack:', error.stack)
 
     // Update job as failed if we have jobId
-    if (jobId) {
-      try {
+    try {
+      const body = await req.clone().json()
+      const jobId = body.jobId
+      
+      if (jobId) {
         const supabase = createClient(
           Deno.env.get('SUPABASE_URL') ?? '',
           Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -495,9 +489,9 @@ Deno.serve(async (req) => {
           .eq('id', jobId)
         
         console.log(`Updated job ${jobId} status to failed`)
-      } catch (updateError) {
-        console.error('Error updating failed job:', updateError)
       }
+    } catch (updateError) {
+      console.error('Error updating failed job:', updateError)
     }
 
     return new Response(
