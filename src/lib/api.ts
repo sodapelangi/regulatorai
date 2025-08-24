@@ -66,6 +66,28 @@ export const workspaceApi = {
   }
 };
 
+// Recent Regulations API (for dashboard - all uploaded regulations)
+export const recentRegulationsApi = {
+  // Get recent regulations (all uploaded, sorted by newest)
+  async getRecentRegulations(options: {
+    limit?: number;
+    offset?: number;
+    search?: string;
+  } = {}) {
+    const params = new URLSearchParams();
+    if (options.limit) params.set('limit', options.limit.toString());
+    if (options.offset) params.set('offset', options.offset.toString());
+    if (options.search) params.set('search', options.search);
+
+    const { data, error } = await supabase.functions.invoke('recent-regulations', {
+      method: 'GET'
+    });
+    
+    if (error) throw error;
+    return data;
+  }
+};
+
 // View Tracking API
 export const viewTrackingApi = {
   // Record a regulation view

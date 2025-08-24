@@ -11,7 +11,7 @@ import { Badge } from "./ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Info, Plus, CheckCircle2, Calendar } from "lucide-react";
 import { mockMetrics, mockRegulations, mockDetailedRegulations } from "../data/mockData";
-import { workspaceApi, viewTrackingApi, regulationApi } from "../lib/api";
+import { workspaceApi, viewTrackingApi, regulationApi, recentRegulationsApi } from "../lib/api";
 import { toast } from "sonner";
 
 interface DashboardProps {
@@ -51,22 +51,22 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
   const loadRecentRegulations = async () => {
     try {
       setLoading(true);
-      const response = await viewTrackingApi.getRecentRegulations({
+      const response = await recentRegulationsApi.getRecentRegulations({
         limit: 20
       });
       
       // Transform data to match expected format
       const transformedRegulations = response.data.map(reg => ({
         id: reg.id,
-        title: reg.judul_lengkap,
+        title: reg.judul_lengkap || 'Untitled Regulation',
         number: reg.nomor,
         establishedDate: reg.tanggal_penetapan || reg.upload_date,
         promulgatedDate: reg.tanggal_penetapan || reg.upload_date,
-        description: reg.tentang,
-        about: reg.tentang,
+        description: reg.tentang || 'No description available',
+        about: reg.tentang || 'No description available',
         impactedSectors: reg.sector_impacts || [],
-        location: reg.instansi,
-        status: reg.status,
+        location: reg.instansi || 'Unknown',
+        status: reg.status || 'active',
         inWorkspace: reg.in_workspace
       }));
       
