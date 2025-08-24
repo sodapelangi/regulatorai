@@ -175,7 +175,7 @@ export function IngestionPage({ onBack }: IngestionPageProps) {
       setCurrentJob(job);
       
       // Start processing with Edge Function
-      const { error: processError } = await supabase.functions.invoke('process-document', {
+      const { error: processError } = await supabase.functions.invoke('process-documents', {
         body: {
           jobId: job.id,
           documentText: documentText,
