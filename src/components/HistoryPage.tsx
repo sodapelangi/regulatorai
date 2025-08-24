@@ -99,7 +99,7 @@ export function HistoryPage({ onViewRegulation }: HistoryPageProps) {
           <CardTitle className="flex items-center justify-between">
             Recently Viewed Regulations
             <Badge variant="secondary" className="text-xs">
-              {filteredHistory.length} viewed today
+              {viewHistory.length} viewed
             </Badge>
           </CardTitle>
         </CardHeader>
@@ -109,12 +109,14 @@ export function HistoryPage({ onViewRegulation }: HistoryPageProps) {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
               <p className="text-muted-foreground">Loading view history...</p>
             </div>
-          ) : filteredHistory.length === 0 ? (
+          ) : viewHistory.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              {searchTerm ? 'No regulations match your search.' : 'No regulations viewed today.'}
+              {searchTerm ? 'No regulations match your search.' : 'No regulations viewed yet.'}
             </div>
           ) : (
-            filteredHistory.map((item) => (
+            viewHistory.filter(item => 
+              !searchTerm || item?.judul_lengkap?.toLowerCase().includes(searchTerm.toLowerCase())
+            ).map((item) => (
               <div key={item.id} className="border rounded-lg p-4 space-y-3 hover:bg-muted/50 transition-colors">
                 <div className="flex items-start justify-between">
                   <div className="space-y-2 flex-1">
@@ -126,7 +128,6 @@ export function HistoryPage({ onViewRegulation }: HistoryPageProps) {
                       <span>Number: {item.nomor}</span>
                       <span>Year: {item.tahun}</span>
                       <span>Uploaded: {new Date(item.upload_date).toLocaleDateString()}</span>
-                      <span>Source: {item.source}</span>
                     </div>
                     
                     <p className="text-sm text-muted-foreground">
@@ -136,7 +137,7 @@ export function HistoryPage({ onViewRegulation }: HistoryPageProps) {
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm text-muted-foreground">
-                        Viewed {formatTimeAgo(item.viewedAt)}
+                         Viewed {formatTimeAgo(item.viewed_at)}
                       </span>
                     </div>
 

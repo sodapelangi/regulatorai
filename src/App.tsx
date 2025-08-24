@@ -13,7 +13,7 @@ export default function App() {
 
   const handleViewRegulation = (regulationId: string) => {
     setSelectedRegulationId(regulationId);
-    setActiveMenu("workspace-details");
+    setActiveMenu("regulation-detail");
   };
 
   const handleBackToDashboard = () => {
@@ -41,6 +41,12 @@ export default function App() {
           <Dashboard onViewRegulation={handleViewRegulation} />
         )}
         {activeMenu.startsWith("workspace") && (
+          <IntelligenceWorkspace
+            initialRegulationId={selectedRegulationId}
+            onBackToDashboard={handleBackToDashboard}
+          />
+        )}
+        {activeMenu === "regulation-detail" && (
           <IntelligenceWorkspace
             initialRegulationId={selectedRegulationId}
             onBackToDashboard={handleBackToDashboard}

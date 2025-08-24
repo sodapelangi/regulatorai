@@ -10,8 +10,8 @@ import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Info, Plus, CheckCircle2, Calendar } from "lucide-react";
-import { mockMetrics, mockRegulations, mockDetailedRegulations } from "../data/mockData";
-import { workspaceApi, viewTrackingApi, regulationApi, recentRegulationsApi } from "../lib/api";
+import { mockMetrics } from "../data/mockData";
+import { workspaceApi, viewTrackingApi, recentRegulationsApi } from "../lib/api";
 import { toast } from "sonner";
 
 interface DashboardProps {
@@ -29,7 +29,7 @@ interface TodoItem {
 export function Dashboard({ onViewRegulation }: DashboardProps) {
   const [timePeriod, setTimePeriod] = useState("7d");
   const [currentPage, setCurrentPage] = useState(1);
-  const [regulations, setRegulations] = useState(mockRegulations);
+  const [regulations, setRegulations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [newTodoTask, setNewTodoTask] = useState("");
   const [todos, setTodos] = useState<TodoItem[]>([
@@ -64,7 +64,7 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
         promulgatedDate: reg.tanggal_penetapan || reg.upload_date,
         description: reg.tentang || 'No description available',
         about: reg.tentang || 'No description available',
-        impactedSectors: reg.sector_impacts || [],
+        impactedSectors: transformSectorImpacts(reg.sector_impacts),
         location: reg.instansi || 'Unknown',
         status: reg.status || 'active',
         inWorkspace: reg.in_workspace
@@ -79,6 +79,18 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
     }
   };
   const handleAddTodo = () => {
+  // Transform AI sector impacts to expected format
+  const transformSectorImpacts = (sectorImpacts: any) => {
+    if (!sectorImpacts || !Array.isArray(sectorImpacts)) {
+      return [];
+    }
+    
+    return sectorImpacts.map(impact => ({
+      sector: impact.sector,
+      importance: impact.impact_level?.toLowerCase() || 'medium',
+      aiConfidence: impact.confidence || 0.8
+    }));
+  };
     if (newTodoTask.trim()) {
       const newTodo: TodoItem = {
         id: Date.now().toString(),
