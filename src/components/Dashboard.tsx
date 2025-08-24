@@ -102,32 +102,6 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
   };
 
   const handleAddTodo = () => {
-  const loadDashboardMetrics = async () => {
-    try {
-      setMetricsLoading(true);
-      const metricsData = await recentRegulationsApi.getDashboardMetrics();
-      setMetrics(metricsData);
-    } catch (error) {
-      console.error('Failed to load dashboard metrics:', error);
-      toast.error('Failed to load dashboard metrics');
-    } finally {
-      setMetricsLoading(false);
-    }
-  };
-
-  // Transform AI sector impacts to expected format
-  const transformSectorImpacts = (sectorImpacts: any) => {
-    if (!sectorImpacts || !Array.isArray(sectorImpacts)) {
-      return [];
-    }
-    
-    return sectorImpacts.map(impact => ({
-      sector: impact.sector,
-      importance: impact.impact_level?.toLowerCase() || 'medium',
-      aiConfidence: impact.confidence || 0.8
-    }));
-  };
-
     if (newTodoTask.trim()) {
       const newTodo: TodoItem = {
         id: Date.now().toString(),
@@ -139,6 +113,11 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
       setNewTodoTask("");
     }
   };
+
+  const handleAddToWorkspace = async (regulationId: string) => {
+    try {
+      await workspaceApi.addToWorkspace(regulationId);
+      
       setRegulations(regulations.map(reg => 
         reg.id === regulationId ? { ...reg, inWorkspace: true } : reg
       ));
