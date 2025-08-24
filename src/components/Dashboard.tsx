@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MetricsCards } from "./MetricsCards";
 import { SectorImpactChart } from "./SectorImpactChart";
 import { RegulationsList } from "./RegulationsList";
