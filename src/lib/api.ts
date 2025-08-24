@@ -74,13 +74,14 @@ export const recentRegulationsApi = {
     offset?: number;
     search?: string;
   } = {}) {
-    const params = new URLSearchParams();
-    if (options.limit) params.set('limit', options.limit.toString());
-    if (options.offset) params.set('offset', options.offset.toString());
-    if (options.search) params.set('search', options.search);
+    const queryParams: Record<string, string> = {};
+    if (options.limit) queryParams.limit = options.limit.toString();
+    if (options.offset) queryParams.offset = options.offset.toString();
+    if (options.search) queryParams.search = options.search;
 
     const { data, error } = await supabase.functions.invoke('recent-regulations', {
-      method: 'GET'
+      method: 'GET',
+      query: queryParams
     });
     
     if (error) throw error;
