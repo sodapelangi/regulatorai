@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Calendar, Clock, FileText, TrendingUp, Plus, CheckCircle } from 'lucide-react';
+import { Calendar, Clock, FileText, TrendingUp, Plus, CheckCircle, Brain } from 'lucide-react';
 import { RegulationsList } from './RegulationsList';
 import { MetricsCards } from './MetricsCards';
 import { SectorImpactChart } from './SectorImpactChart';
