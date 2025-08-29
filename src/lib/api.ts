@@ -172,6 +172,9 @@ export const recentRegulationsApi = {
         tanggal_pengundangan,
         status,
         upload_date,
+        tempat_penetapan,
+        document_type,
+        ai_analysis,
         sector_impacts,
         user_workspaces!left (id)
       `)
@@ -533,7 +536,8 @@ export const regulationApi = {
       description: regulation.tentang || 'No description available',
       about: regulation.tentang || 'No description available',
       impactedSectors: transformSectorImpacts(regulation.sector_impacts),
-      location: regulation.instansi || 'Unknown',
+      location: regulation.tempat_penetapan || 'Unknown',
+      documentType: regulation.document_type || 'Unknown',
       status: regulation.status,
       fullText: {
         new: regulation.full_text || 'Full text not available'

@@ -36,6 +36,7 @@ interface RegulationDetailProps {
       aiConfidence: number;
     }>;
     location: string;
+    documentType: string;
     status: string;
     fullText?: {
       new: string;
@@ -313,23 +314,9 @@ export function RegulationDetail({
                 </div>
                 
                 <h1 className="text-2xl font-bold text-gray-900 leading-tight mb-2">
-                  {regulation.title}
+                  {regulation.title} {regulation.number}
                 </h1>
                 
-                <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <span className="font-medium">{regulation.number}</span>
-                  <span>•</span>
-                  <span>{new Date(regulation.establishedDate).toLocaleDateString('en-US', { 
-                    day: 'numeric', 
-                    month: 'long', 
-                    year: 'numeric' 
-                  })}</span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    {regulation.location}
-                  </span>
-                </div>
               </div>
             </div>
             
@@ -459,7 +446,7 @@ export function RegulationDetail({
                         </div>
                         <div>
                           <dt className="text-sm font-medium text-gray-500 mb-1">Source</dt>
-                          <dd className="text-base text-gray-900">Official Gazette</dd>
+                          <dd className="text-base text-gray-900">{regulation.documentType}</dd>
                         </div>
                       </div>
                     </div>
