@@ -15,6 +15,12 @@ import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 
+// UUID validation helper
+const isValidUUID = (uuid: string): boolean => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+};
+
 interface RegulationDetailProps {
   regulation: {
     id: string;
@@ -84,6 +90,13 @@ export function RegulationDetail({
   }>>([]);
 
   const loadRegulationData = async () => {
+    // Validate regulation ID before making any database calls
+    if (!isValidUUID(regulation.id)) {
+      console.error('Invalid regulation ID format:', regulation.id);
+      toast.error('Invalid regulation ID format');
+      return;
+    }
+
     try {
       // Load activity history from regulation_views
       const { data: views, error: viewsError } = await supabase
@@ -109,14 +122,14 @@ export function RegulationDetail({
         .from('user_workspaces')
         .select('*')
         .eq('regulation_id', regulation.id)
-        .single();
+        .limit(1);
 
-      if (!workspaceError && workspace) {
+      if (!workspaceError && workspace && workspace.length > 0) {
         setActivityHistory(prev => [...prev, {
-          id: workspace.id,
+          id: workspace[0].id,
           action: 'Added to Workspace',
-          description: `Added with ${workspace.priority} priority`,
-          timestamp: workspace.added_at,
+          description: `Added with ${workspace[0].priority} priority`,
+          timestamp: workspace[0].added_at,
           type: 'workspace'
         }]);
       }
@@ -199,6 +212,12 @@ export function RegulationDetail({
   };
 
   const handleReanalyze = async () => {
+    // Validate regulation ID before making API call
+    if (!isValidUUID(regulation.id)) {
+      toast.error('Invalid regulation ID format');
+      return;
+    }
+
     setIsAnalyzing(true);
     try {
       const { error } = await supabase.functions.invoke('analyze-regulation', {
