@@ -10,7 +10,7 @@ interface WorkspaceNavigationProps {
 export function WorkspaceNavigation({ activeTab, onTabChange, workspaceCount }: WorkspaceNavigationProps) {
   return (
     <div className="border-b bg-card/50">
-      <div className="flex justify-center p-1">
+      <div className="flex justify-start p-1">
         <Button
           variant={activeTab === "workspace" ? "default" : "ghost"}
           onClick={() => onTabChange("workspace")}

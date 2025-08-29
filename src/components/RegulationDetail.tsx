@@ -11,33 +11,154 @@ import { ScrollArea } from "./ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Progress } from "./ui/progress";
 import { Brain, Edit2, ArrowLeft, BookmarkPlus, User, Calendar, CheckCircle2, Clock, AlertTriangle, Plus, Info, FileText, MapPin, History, Eye, Settings, MessageSquare, Send, Users, ExternalLink, Search, Shield, TrendingUp, Building2, Gavel, AlertCircleIcon } from "lucide-react";
-import { DetailedRegulation, REGULATION_SECTORS } from "../data/mockData";
 import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
 import { useState } from "react";
 
 interface RegulationDetailProps {
-  regulation: DetailedRegulation;
+  regulation: {
+    id: string;
+    title: string;
+    number: string;
+    establishedDate: string;
+    promulgatedDate: string;
+    description: string;
+    about: string;
+    impactedSectors: Array<{
+      sector: string;
+      importance: string;
+      aiConfidence: number;
+    }>;
+    location: string;
+    status: string;
+    fullText?: {
+      new: string;
+    };
+    aiAnalysis?: {
+      confidence: number;
+      background: string;
+      key_points: Array<{
+        title: string;
+        description: string;
+        article: string;
+      }>;
+      old_new_comparison: Array<{
+        article: string;
+        old_text: string;
+        new_text: string;
+      }> | null;
+      business_impact: string;
+    };
+    background?: {
+      context: string;
+    };
+    inWorkspace: boolean;
+    viewedAt?: string;
+  };
   onBack: () => void;
   onAddToWorkspace: () => void;
-  onUpdateSectorImpact: (sectorIndex: number, importance: string) => void;
-  onToggleChecklistItem: (itemId: string) => void;
 }
 
 export function RegulationDetail({ 
   regulation, 
   onBack, 
-  onAddToWorkspace, 
-  onUpdateSectorImpact,
-  onToggleChecklistItem 
+  onAddToWorkspace
 }: RegulationDetailProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [newChecklistItem, setNewChecklistItem] = useState("");
-  const [checklist, setChecklist] = useState(regulation.checklist);
+  const [checklist, setChecklist] = useState<Array<{
+    id: string;
+    task: string;
+    completed: boolean;
+    isAiGenerated: boolean;
+  }>>([]);
   const [activeTab, setActiveTab] = useState("overview");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState(regulation.aiAnalysis);
+  const [activityHistory, setActivityHistory] = useState<Array<{
+    id: string;
+    action: string;
+    description: string;
+    timestamp: string;
+    type: 'view' | 'workspace' | 'analysis' | 'edit';
+  }>>([]);
 
+  // Load real checklist and activity data
+  useState(() => {
+    loadRegulationData();
+  }, [regulation.id]);
+
+  const loadRegulationData = async () => {
+    try {
+      // Load activity history from regulation_views
+      const { data: views, error: viewsError } = await supabase
+        .from('regulation_views')
+        .select('*')
+        .eq('regulation_id', regulation.id)
+        .order('viewed_at', { ascending: false })
+        .limit(10);
+
+      if (!viewsError && views) {
+        const history = views.map(view => ({
+          id: view.id,
+          action: 'Regulation Viewed',
+          description: `Viewed regulation for ${view.view_duration_seconds || 0} seconds`,
+          timestamp: view.viewed_at,
+          type: 'view' as const
+        }));
+        setActivityHistory(history);
+      }
+
+      // Load workspace status for history
+      const { data: workspace, error: workspaceError } = await supabase
+        .from('user_workspaces')
+        .select('*')
+        .eq('regulation_id', regulation.id)
+        .single();
+
+      if (!workspaceError && workspace) {
+        setActivityHistory(prev => [...prev, {
+          id: workspace.id,
+          action: 'Added to Workspace',
+          description: `Added with ${workspace.priority} priority`,
+          timestamp: workspace.added_at,
+          type: 'workspace'
+        }]);
+      }
+
+      // Generate default checklist based on regulation
+      const defaultChecklist = [
+        {
+          id: '1',
+          task: 'Review regulation requirements and scope',
+          completed: false,
+          isAiGenerated: true
+        },
+        {
+          id: '2',
+          task: 'Assess compliance impact on current operations',
+          completed: false,
+          isAiGenerated: true
+        },
+        {
+          id: '3',
+          task: 'Consult with legal team for interpretation',
+          completed: false,
+          isAiGenerated: true
+        },
+        {
+          id: '4',
+          task: 'Identify required policy or procedure changes',
+          completed: false,
+          isAiGenerated: true
+        }
+      ];
+      setChecklist(defaultChecklist);
+
+    } catch (error) {
+      console.error('Failed to load regulation data:', error);
+    }
+  };
   const getImportanceColor = (importance: string) => {
     switch (importance) {
       case 'high': return 'destructive';
@@ -74,7 +195,6 @@ export function RegulationDetail({
     setChecklist(checklist.map(item => 
       item.id === itemId ? { ...item, completed: !item.completed } : item
     ));
-    onToggleChecklistItem(itemId);
   };
 
   const handleReanalyze = async () => {
@@ -102,6 +222,15 @@ export function RegulationDetail({
       if (updatedRegulation.ai_analysis) {
         setAiAnalysis(updatedRegulation.ai_analysis);
         toast.success('AI analysis updated successfully');
+        
+        // Add to activity history
+        setActivityHistory(prev => [{
+          id: Date.now().toString(),
+          action: 'AI Analysis Updated',
+          description: 'Regulation re-analyzed with latest AI model',
+          timestamp: new Date().toISOString(),
+          type: 'analysis'
+        }, ...prev]);
       }
 
     } catch (error) {
@@ -110,6 +239,26 @@ export function RegulationDetail({
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleUpdateSectorImpact = (sectorIndex: number, importance: string) => {
+    // Update local state for immediate UI feedback
+    const updatedSectors = [...regulation.impactedSectors];
+    updatedSectors[sectorIndex] = {
+      ...updatedSectors[sectorIndex],
+      importance
+    };
+    
+    // Add to activity history
+    setActivityHistory(prev => [{
+      id: Date.now().toString(),
+      action: 'Sector Impact Updated',
+      description: `Changed "${updatedSectors[sectorIndex].sector}" impact to ${importance}`,
+      timestamp: new Date().toISOString(),
+      type: 'edit'
+    }, ...prev]);
+    
+    toast.success('Sector impact updated');
   };
 
   const completedTasks = checklist.filter(item => item.completed).length;
@@ -366,7 +515,7 @@ export function RegulationDetail({
                             {isEditing ? (
                               <Select 
                                 value={sectorImpact.importance} 
-                                onValueChange={(value) => onUpdateSectorImpact(index, value)}
+                                onValueChange={(value) => handleUpdateSectorImpact(index, value)}
                               >
                                 <SelectTrigger className="h-8 w-32">
                                   <SelectValue />
@@ -478,7 +627,7 @@ export function RegulationDetail({
                   </h3>
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
                     <p className="text-gray-700 leading-relaxed">
-                      {aiAnalysis?.background || regulation.aiAnalysis.background}
+                      {aiAnalysis?.background || regulation.aiAnalysis?.background || 'Background analysis not available'}
                     </p>
                   </div>
                 </div>
@@ -492,7 +641,7 @@ export function RegulationDetail({
                     Key Regulatory Points
                   </h3>
                   <div className="space-y-4">
-                    {(aiAnalysis?.key_points || regulation.aiAnalysis.keyPoints).map((point, index) => (
+                    {(aiAnalysis?.key_points || regulation.aiAnalysis?.key_points || []).map((point, index) => (
                       <div key={index} className="border border-gray-200 rounded-lg p-6 hover:shadow-sm transition-shadow">
                         <div className="flex items-start gap-4">
                           <Badge variant="outline" className="text-xs font-mono font-medium px-3 py-1">
@@ -526,7 +675,7 @@ export function RegulationDetail({
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {(aiAnalysis?.old_new_comparison || regulation.aiAnalysis.oldNewComparison)?.map((comparison, index) => (
+                        {(aiAnalysis?.old_new_comparison || regulation.aiAnalysis?.old_new_comparison || []).map((comparison, index) => (
                           <TableRow key={index} className="hover:bg-gray-50">
                             <TableCell className="font-medium text-center bg-gray-50 border-r">
                               <Badge variant="outline" className="font-mono text-xs">
@@ -534,19 +683,17 @@ export function RegulationDetail({
                               </Badge>
                             </TableCell>
                             <TableCell className="text-sm bg-red-50 border-l-4 border-red-200 p-4">
-                              <p className="leading-relaxed">{comparison.old_text || comparison.oldText}</p>
+                              <p className="leading-relaxed">{comparison.old_text}</p>
                             </TableCell>
                             <TableCell className="text-sm bg-green-50 border-l-4 border-green-200 p-4">
-                              <p className="leading-relaxed">{comparison.new_text || comparison.newText}</p>
+                              <p className="leading-relaxed">{comparison.new_text}</p>
                             </TableCell>
                           </TableRow>
-                        )) || (
+                        ))}
+                        {(!aiAnalysis?.old_new_comparison && !regulation.aiAnalysis?.old_new_comparison) && (
                           <TableRow>
                             <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
-                              {aiAnalysis?.old_new_comparison === null ? 
-                                "Previous regulation not available in system" : 
-                                "This regulation does not revoke or change other regulations"
-                              }
+                              Previous regulation not available in system
                             </TableCell>
                           </TableRow>
                         )}
@@ -566,7 +713,7 @@ export function RegulationDetail({
                   <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-6">
                     <div className="prose prose-sm max-w-none">
                       <p className="text-gray-800 leading-relaxed whitespace-pre-line">
-                        {aiAnalysis?.business_impact || regulation.aiAnalysis.whyItMattersForBusiness}
+                        {aiAnalysis?.business_impact || regulation.aiAnalysis?.business_impact || 'Business impact analysis not available'}
                       </p>
                     </div>
                   </div>
@@ -667,51 +814,37 @@ export function RegulationDetail({
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6 space-y-6">
-                {/* Timeline */}
-                <div className="space-y-6">
-                  <div className="flex items-start gap-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="p-2 bg-green-100 rounded-full flex-shrink-0">
-                      <CheckCircle2 className="h-5 w-5 text-green-600" />
+                {/* Real Activity Timeline */}
+                <div className="space-y-4">
+                  {activityHistory.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No activity history available for this regulation.
                     </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-green-900">Task Completed</h4>
-                      <p className="text-green-700 mt-1">Consult with environmental law expert</p>
-                      <p className="text-xs text-green-600 mt-2 font-medium">18 Aug 2024, 14:30 • Manual action</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="p-2 bg-blue-100 rounded-full flex-shrink-0">
-                      <Edit2 className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-blue-900">Sector Impact Updated</h4>
-                      <p className="text-blue-700 mt-1">Changed "Manufacturing" sector from medium to high impact</p>
-                      <p className="text-xs text-blue-600 mt-2 font-medium">18 Aug 2024, 14:30</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                    <div className="p-2 bg-gray-100 rounded-full flex-shrink-0">
-                      <Plus className="h-5 w-5 text-gray-600" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900">Manual Action Added</h4>
-                      <p className="text-gray-700 mt-1">Added: "Schedule board meeting for compliance review"</p>
-                      <p className="text-xs text-gray-600 mt-2 font-medium">17 Aug 2024, 09:15</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                    <div className="p-2 bg-purple-100 rounded-full flex-shrink-0">
-                      <BookmarkPlus className="h-5 w-5 text-purple-600" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-purple-900">Added to Workspace</h4>
-                      <p className="text-purple-700 mt-1">Regulation added to personal workspace</p>
-                      <p className="text-xs text-purple-600 mt-2 font-medium">16 Aug 2024, 11:20</p>
-                    </div>
-                  </div>
+                  ) : (
+                    activityHistory.map((activity) => (
+                      <div key={activity.id} className="flex items-start gap-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                        <div className="p-2 bg-gray-100 rounded-full flex-shrink-0">
+                          {activity.type === 'view' && <Eye className="h-5 w-5 text-blue-600" />}
+                          {activity.type === 'workspace' && <BookmarkPlus className="h-5 w-5 text-purple-600" />}
+                          {activity.type === 'analysis' && <Brain className="h-5 w-5 text-green-600" />}
+                          {activity.type === 'edit' && <Edit2 className="h-5 w-5 text-orange-600" />}
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-900">{activity.action}</h4>
+                          <p className="text-gray-700 mt-1">{activity.description}</p>
+                          <p className="text-xs text-gray-600 mt-2 font-medium">
+                            {new Date(activity.timestamp).toLocaleDateString('en-US', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>

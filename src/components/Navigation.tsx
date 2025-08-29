@@ -2,6 +2,8 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "./ui/dropdown-menu";
 import { Bell, Search, Settings, Upload, User, LogOut, FileText, Database } from "lucide-react";
+import { useState, useEffect } from "react";
+import { recentRegulationsApi, workspaceApi } from "../lib/api";
 
 interface NavigationProps {
   activeMenu: string;
@@ -9,6 +11,27 @@ interface NavigationProps {
 }
 
 export function Navigation({ activeMenu, onMenuChange }: NavigationProps) {
+  const [regulationCount, setRegulationCount] = useState(0);
+  const [workspaceCount, setWorkspaceCount] = useState(0);
+
+  useEffect(() => {
+    loadCounts();
+  }, []);
+
+  const loadCounts = async () => {
+    try {
+      // Get total regulations count
+      const metricsData = await recentRegulationsApi.getDashboardMetrics();
+      setRegulationCount(metricsData.totalRegulations);
+
+      // Get workspace count
+      const workspaceData = await workspaceApi.getWorkspace();
+      setWorkspaceCount(workspaceData.count);
+    } catch (error) {
+      console.error('Failed to load navigation counts:', error);
+    }
+  };
+
   return (
     <nav className="border-b bg-card">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -24,8 +47,8 @@ export function Navigation({ activeMenu, onMenuChange }: NavigationProps) {
                 className="relative"
               >
                 Regulatory Intelligence
-                <Badge variant="destructive" className="ml-2 px-1.5 py-0.5 text-xs">
-                  12
+                <Badge variant="secondary" className="ml-2 px-1.5 py-0.5 text-xs">
+                  {regulationCount}
                 </Badge>
               </Button>
               <Button
@@ -35,7 +58,7 @@ export function Navigation({ activeMenu, onMenuChange }: NavigationProps) {
               >
                 Intelligence Workspace
                 <Badge variant="secondary" className="ml-2 px-1.5 py-0.5 text-xs">
-                  5
+                  {workspaceCount}
                 </Badge>
               </Button>
             </div>

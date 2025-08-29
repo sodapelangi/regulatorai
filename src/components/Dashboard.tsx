@@ -6,20 +6,12 @@ import { Input } from './ui/input';
 import { Calendar, Clock, FileText, TrendingUp, Plus, CheckCircle } from 'lucide-react';
 import { RegulationsList } from './RegulationsList';
 import { MetricsCards } from './MetricsCards';
-import { TrendChart } from './TrendChart';
 import { SectorImpactChart } from './SectorImpactChart';
 import { recentRegulationsApi, workspaceApi } from '../lib/api';
 import { toast } from 'sonner';
 
 interface DashboardProps {
   onViewRegulation: (regulationId: string) => void;
-}
-
-interface TodoItem {
-  id: string;
-  task: string;
-  completed: boolean;
-  priority: 'low' | 'medium' | 'high';
 }
 
 interface Regulation {
@@ -61,8 +53,6 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
   });
   const [loading, setLoading] = useState(true);
   const [metricsLoading, setMetricsLoading] = useState(true);
-  const [todos, setTodos] = useState<TodoItem[]>([]);
-  const [newTodoTask, setNewTodoTask] = useState('');
 
   useEffect(() => {
     loadRecentRegulations();
@@ -157,29 +147,6 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
     }
   };
 
-  const handleAddTodo = () => {
-    if (newTodoTask.trim()) {
-      const newTodo: TodoItem = {
-        id: Date.now().toString(),
-        task: newTodoTask.trim(),
-        completed: false,
-        priority: "medium"
-      };
-      setTodos([...todos, newTodo]);
-      setNewTodoTask("");
-    }
-  };
-
-  const toggleTodo = (id: string) => {
-    setTodos(prev => 
-      prev.map(todo => 
-        todo.id === id 
-          ? { ...todo, completed: !todo.completed }
-          : todo
-      )
-    );
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -198,113 +165,42 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
       {/* Metrics Cards */}
       <MetricsCards metrics={metrics} />
 
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Regulations */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Recent Regulations
-              </CardTitle>
-              <CardDescription>
-                Latest regulatory updates and documents
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                  <p className="text-muted-foreground">Loading regulations...</p>
-                </div>
-              ) : regulations.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  No regulations available. Upload a document to get started.
-                </div>
-              ) : (
-                <RegulationsList
-                  regulations={regulations}
-                  loading={loading}
-                  onViewRegulation={handleViewRegulation}
-                  onAddToWorkspace={handleAddToWorkspace}
-                />
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5" />
-                Quick Actions
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button className="w-full justify-start" variant="outline">
-                <FileText className="mr-2 h-4 w-4" />
-                Upload Document
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Todo List */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5" />
-                Tasks
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Add new task..."
-                  value={newTodoTask}
-                  onChange={(e) => setNewTodoTask(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddTodo()}
-                />
-                <Button size="sm" onClick={handleAddTodo}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {todos.map((todo) => (
-                  <div
-                    key={todo.id}
-                    className="flex items-center gap-2 p-2 rounded border"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={todo.completed}
-                      onChange={() => toggleTodo(todo.id)}
-                      className="rounded"
-                    />
-                    <span className={todo.completed ? 'line-through text-muted-foreground' : ''}>
-                      {todo.task}
-                    </span>
-                  </div>
-                ))}
-                {todos.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No tasks yet. Add one above!
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <TrendChart data={metrics.weeklyTrend} />
+      {/* Sector Impact Chart */}
+      <div className="space-y-6">
         <SectorImpactChart metrics={metrics} regulations={regulations} />
       </div>
+
+      {/* Recent Regulations */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Recent Regulations
+          </CardTitle>
+          <CardDescription>
+            Latest regulatory updates and documents
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading regulations...</p>
+            </div>
+          ) : regulations.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No regulations available. Upload a document to get started.
+            </div>
+          ) : (
+            <RegulationsList
+              regulations={regulations}
+              loading={loading}
+              onViewRegulation={handleViewRegulation}
+              onAddToWorkspace={handleAddToWorkspace}
+            />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
