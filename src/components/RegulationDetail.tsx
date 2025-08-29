@@ -83,11 +83,6 @@ export function RegulationDetail({
     type: 'view' | 'workspace' | 'analysis' | 'edit';
   }>>([]);
 
-  // Load real checklist and activity data
-  useState(() => {
-    loadRegulationData();
-  }, [regulation.id]);
-
   const loadRegulationData = async () => {
     try {
       // Load activity history from regulation_views
@@ -159,6 +154,12 @@ export function RegulationDetail({
       console.error('Failed to load regulation data:', error);
     }
   };
+
+  // Load real checklist and activity data
+  useEffect(() => {
+    loadRegulationData();
+  }, [regulation.id]);
+
   const getImportanceColor = (importance: string) => {
     switch (importance) {
       case 'high': return 'destructive';
