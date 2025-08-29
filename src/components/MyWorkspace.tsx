@@ -9,9 +9,10 @@ import { toast } from "sonner";
 
 interface MyWorkspaceProps {
   onViewRegulation: (regulationId: string) => void;
+  onWorkspaceCountChange?: (count: number) => void;
 }
 
-export function MyWorkspace({ onViewRegulation }: MyWorkspaceProps) {
+export function MyWorkspace({ onViewRegulation, onWorkspaceCountChange }: MyWorkspaceProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [workspaceItems, setWorkspaceItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,9 +27,17 @@ export function MyWorkspace({ onViewRegulation }: MyWorkspaceProps) {
       setLoading(true);
       const response = await workspaceApi.getWorkspace();
       setWorkspaceItems(response.data || []);
+      // Update parent component with count
+      if (onWorkspaceCountChange) {
+        onWorkspaceCountChange(response.count || 0);
+      }
     } catch (error) {
       console.error('Failed to load workspace:', error);
       toast.error('Failed to load workspace');
+      setWorkspaceItems([]);
+      if (onWorkspaceCountChange) {
+        onWorkspaceCountChange(0);
+      }
     } finally {
       setLoading(false);
     }
@@ -44,6 +53,10 @@ export function MyWorkspace({ onViewRegulation }: MyWorkspaceProps) {
     try {
       await workspaceApi.removeFromWorkspace(workspaceId);
       setWorkspaceItems(prev => prev.filter(item => item.id !== workspaceId));
+      // Update parent component with new count
+      if (onWorkspaceCountChange) {
+        onWorkspaceCountChange(workspaceItems.length - 1);
+      }
       toast.success('Removed from workspace');
     } catch (error) {
       console.error('Failed to remove from workspace:', error);

@@ -3,12 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Calendar, Clock, FileText, TrendingUp, Plus, CheckCircle } from 'lucide-react';
 import { RegulationsList } from './RegulationsList';
 import { MetricsCards } from './MetricsCards';
 import { TrendChart } from './TrendChart';
 import { SectorImpactChart } from './SectorImpactChart';
+import { recentRegulationsApi, workspaceApi } from '../lib/api';
 import { toast } from 'sonner';
 
 interface DashboardProps {
@@ -43,10 +43,11 @@ interface Regulation {
 interface Metrics {
   totalRegulations: number;
   dailyUpdates: number;
-  sectorImpacts: number;
+  highImpactRegulations: Record<string, number>;
   weeklyTrend: Array<{
     date: string;
-    count: number;
+    regulations: number;
+    highImpact: number;
   }>;
 }
 
@@ -55,7 +56,7 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
   const [metrics, setMetrics] = useState<Metrics>({
     totalRegulations: 0,
     dailyUpdates: 0,
-    sectorImpacts: 0,
+    highImpactRegulations: {},
     weeklyTrend: []
   });
   const [loading, setLoading] = useState(true);
@@ -68,29 +69,46 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
     loadDashboardMetrics();
   }, []);
 
+  // Transform AI sector impacts to expected format
+  const transformSectorImpacts = (sectorImpacts: any) => {
+    if (!sectorImpacts || !Array.isArray(sectorImpacts)) {
+      return [];
+    }
+    
+    return sectorImpacts.map(impact => ({
+      sector: impact.sector,
+      importance: impact.impact_level?.toLowerCase() || 'medium',
+      aiConfidence: impact.confidence || 0.8
+    }));
+  };
+
   const loadRecentRegulations = async () => {
     try {
       setLoading(true);
-      // Mock data for now - replace with actual API call
-      const mockRegulations: Regulation[] = [
-        {
-          id: '1',
-          title: 'Sample Regulation',
-          number: 'REG-001',
-          establishedDate: '2024-01-15',
-          promulgatedDate: '2024-01-15',
-          description: 'Sample regulation description',
-          about: 'Sample regulation about',
-          impactedSectors: [],
-          location: 'Jakarta',
-          status: 'active',
-          inWorkspace: false
-        }
-      ];
-      setRegulations(mockRegulations);
+      const response = await recentRegulationsApi.getRecentRegulations({
+        limit: 10
+      });
+      
+      // Transform data to match expected format
+      const transformedRegulations = response.data.map(reg => ({
+        id: reg.id,
+        title: reg.judul_lengkap || 'Untitled Regulation',
+        number: reg.nomor || 'No Number',
+        establishedDate: reg.tanggal_penetapan || reg.upload_date,
+        promulgatedDate: reg.tanggal_pengundangan || reg.tanggal_penetapan || reg.upload_date,
+        description: reg.tentang || 'No description available',
+        about: reg.tentang || 'No description available',
+        impactedSectors: transformSectorImpacts(reg.sector_impacts),
+        location: reg.instansi || 'Unknown',
+        status: reg.status || 'active',
+        inWorkspace: reg.in_workspace || false
+      }));
+      
+      setRegulations(transformedRegulations);
     } catch (error) {
       console.error('Failed to load recent regulations:', error);
       toast.error('Failed to load recent regulations');
+      setRegulations([]);
     } finally {
       setLoading(false);
     }
@@ -99,19 +117,18 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
   const loadDashboardMetrics = async () => {
     try {
       setMetricsLoading(true);
-      // Mock metrics for now - replace with actual API call
-      const mockMetrics: Metrics = {
-        totalRegulations: 1,
-        dailyUpdates: 0,
-        sectorImpacts: 0,
-        weeklyTrend: [
-          { date: '2024-01-15', count: 1 }
-        ]
-      };
-      setMetrics(mockMetrics);
+      const metricsData = await recentRegulationsApi.getDashboardMetrics();
+      setMetrics(metricsData);
     } catch (error) {
       console.error('Failed to load dashboard metrics:', error);
       toast.error('Failed to load dashboard metrics');
+      // Set empty metrics on error
+      setMetrics({
+        totalRegulations: 0,
+        dailyUpdates: 0,
+        highImpactRegulations: {},
+        weeklyTrend: []
+      });
     } finally {
       setMetricsLoading(false);
     }
@@ -123,7 +140,9 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
 
   const handleAddToWorkspace = async (regulationId: string) => {
     try {
-      // Mock workspace addition - replace with actual API call
+      await workspaceApi.addToWorkspace(regulationId);
+      
+      // Update local state to reflect the change
       setRegulations(prev => 
         prev.map(reg => 
           reg.id === regulationId 
@@ -177,10 +196,7 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
       </div>
 
       {/* Metrics Cards */}
-      <MetricsCards 
-        metrics={metrics}
-        loading={metricsLoading}
-      />
+      <MetricsCards metrics={metrics} />
 
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -197,12 +213,23 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <RegulationsList
-                regulations={regulations}
-                loading={loading}
-                onViewRegulation={handleViewRegulation}
-                onAddToWorkspace={handleAddToWorkspace}
-              />
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                  <p className="text-muted-foreground">Loading regulations...</p>
+                </div>
+              ) : regulations.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No regulations available. Upload a document to get started.
+                </div>
+              ) : (
+                <RegulationsList
+                  regulations={regulations}
+                  loading={loading}
+                  onViewRegulation={handleViewRegulation}
+                  onAddToWorkspace={handleAddToWorkspace}
+                />
+              )}
             </CardContent>
           </Card>
         </div>
@@ -276,7 +303,7 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <TrendChart data={metrics.weeklyTrend} />
-        <SectorImpactChart regulations={regulations} />
+        <SectorImpactChart metrics={metrics} regulations={regulations} />
       </div>
     </div>
   );

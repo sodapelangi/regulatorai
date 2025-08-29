@@ -444,6 +444,52 @@ export const viewTrackingApi = {
   }
 };
 
+// Helper functions (move outside of regulationApi object)
+function transformSectorImpacts(sectorImpacts: any) {
+  if (!sectorImpacts || !Array.isArray(sectorImpacts)) {
+    return [];
+  }
+  
+  return sectorImpacts.map(impact => ({
+    sector: impact.sector,
+    importance: impact.impact_level?.toLowerCase() || 'medium',
+    aiConfidence: impact.confidence || 0.8
+  }));
+}
+
+function generateDefaultChecklist(regulation: any) {
+  return [
+    {
+      id: '1',
+      task: 'Review regulation requirements',
+      completed: false,
+      isAiGenerated: true
+    },
+    {
+      id: '2', 
+      task: 'Assess compliance impact',
+      completed: false,
+      isAiGenerated: true
+    },
+    {
+      id: '3',
+      task: 'Consult with legal team',
+      completed: false,
+      isAiGenerated: true
+    }
+  ];
+}
+
+function getDefaultAiAnalysis() {
+  return {
+    confidence: 0.0,
+    background: 'AI analysis not yet available for this regulation.',
+    keyPoints: [],
+    oldNewComparison: [],
+    whyItMattersForBusiness: 'Business impact analysis not yet available.'
+  };
+}
+
 // Regulation API helpers
 export const regulationApi = {
   // Get regulation with workspace status
@@ -452,6 +498,13 @@ export const regulationApi = {
       .from('regulations')
       .select(`
         *,
+        document_chunks!left (
+          id,
+          chunk_level,
+          chunk_type,
+          content,
+          title
+        ),
         user_workspaces!left (
           id,
           priority,
@@ -470,11 +523,34 @@ export const regulationApi = {
       source: 'regulation_detail'
     });
 
-    return {
-      ...regulation,
-      in_workspace: !!regulation.user_workspaces?.length,
-      workspace_data: regulation.user_workspaces?.[0] || null
+    // Transform to expected format for RegulationDetail component
+    const transformedRegulation = {
+      id: regulation.id,
+      title: regulation.judul_lengkap,
+      number: regulation.nomor,
+      establishedDate: regulation.tanggal_penetapan || regulation.upload_date,
+      promulgatedDate: regulation.tanggal_pengundangan || regulation.tanggal_penetapan || regulation.upload_date,
+      description: regulation.tentang || 'No description available',
+      about: regulation.tentang || 'No description available',
+      impactedSectors: transformSectorImpacts(regulation.sector_impacts),
+      location: regulation.instansi || 'Unknown',
+      status: regulation.status,
+      fullText: {
+        new: regulation.full_text || 'Full text not available'
+      },
+      keyChanges: [],
+      whyItMatters: 'Analysis not available',
+      checklist: generateDefaultChecklist(regulation),
+      aiAnalysis: regulation.ai_analysis || getDefaultAiAnalysis(),
+      background: {
+        context: regulation.ai_analysis?.background || 'Background analysis not available'
+      },
+      inWorkspace: !!regulation.user_workspaces?.length,
+      workspace_data: regulation.user_workspaces?.[0] || null,
+      viewedAt: new Date().toISOString()
     };
+
+    return transformedRegulation;
   },
 
   // Get regulations for dashboard

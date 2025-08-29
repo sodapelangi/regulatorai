@@ -1,18 +1,23 @@
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { DashboardMetrics } from "../data/mockData";
-import { mockRegulations } from "../data/mockData";
 import { Badge } from "./ui/badge";
 import { Info } from "lucide-react";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 interface SectorImpactChartProps {
   metrics: DashboardMetrics;
+  regulations: Array<{
+    impactedSectors: Array<{
+      sector: string;
+      importance: string;
+    }>;
+  }>;
 }
 
-export function SectorImpactChart({ metrics }: SectorImpactChartProps) {
+export function SectorImpactChart({ metrics, regulations }: SectorImpactChartProps) {
   // Calculate high/medium/low impact regulations by sector from actual data
-  const sectorCounts = mockRegulations.reduce((acc, regulation) => {
+  const sectorCounts = regulations.reduce((acc, regulation) => {
     regulation.impactedSectors.forEach(sectorImpact => {
       if (!acc[sectorImpact.sector]) {
         acc[sectorImpact.sector] = { high: 0, medium: 0, low: 0 };
@@ -35,6 +40,21 @@ export function SectorImpactChart({ metrics }: SectorImpactChartProps) {
     .sort((a, b) => b.total - a.total)
     .slice(0, 10); // Show top 10 sectors
 
+  // Show empty state if no data
+  if (regulations.length === 0 || sortedSectors.length === 0) {
+    return (
+      <Card className="col-span-3">
+        <CardHeader>
+          <CardTitle>Impact Rating by Sector</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+            No sector impact data available. Upload regulations with AI analysis to see sector impacts.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       // Find the full sector name from the data
@@ -105,7 +125,7 @@ export function SectorImpactChart({ metrics }: SectorImpactChartProps) {
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="text-xs">
-              {mockRegulations.length} total regulations
+              {regulations.length} total regulations
             </Badge>
             <TooltipProvider>
               <UITooltip>
