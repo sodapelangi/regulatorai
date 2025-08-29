@@ -1,57 +1,11 @@
-import { createClient } from 'npm:@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Max-Age': '86400',
-}
-
-interface RegulationData {
-  id: string
-  judul_lengkap: string
-  nomor: string
-  tahun: number
-  tentang: string
-  menimbang: string
-  mengingat: string
-  full_text: string
-  tanggal_penetapan: string
-  instansi: string
-  jenis_peraturan: string
-}
-
-interface SectorImpact {
-  sector: string
-  impact_level: 'High' | 'Medium' | 'Low'
-  rationale: string
-  confidence: number
-}
-
-interface AIAnalysis {
-  background: string
-  key_points: Array<{
-    title: string
-    description: string
-    article: string
-    confidence: number
-  }>
-  old_new_comparison: Array<{
-    aspect: string
-    old_text: string
-    new_text: string
-    article: string
-  }> | null
-  business_impact: string
-  action_checklist: Array<{
-    id: string
-    task: string
-    article_reference?: string
-    timeline?: string
-    is_ai_generated: boolean
-  }>
-  overall_confidence: number
-}
+  'Access-Control-Max-Age': '86400'
+};
 
 const AVAILABLE_SECTORS = [
   "Technology, Media and Telecommunications",
@@ -74,123 +28,187 @@ const AVAILABLE_SECTORS = [
   "Tax and Non-Tax Charges",
   "Trade",
   "Transportation and Logistics Services"
-]
+];
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 200, headers: corsHeaders })
+    return new Response(null, {
+      status: 200,
+      headers: corsHeaders
+    });
   }
 
   if (req.method !== 'POST') {
-    return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
-      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return new Response(JSON.stringify({
+      error: 'Method not allowed'
+    }), {
+      status: 405,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      }
+    });
   }
 
   try {
-    const { regulation_id } = await req.json()
-
+    const { regulation_id } = await req.json();
+    
     if (!regulation_id) {
-      throw new Error('Missing required parameter: regulation_id')
+      throw new Error('Missing required parameter: regulation_id');
     }
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    );
 
     // Fetch regulation data
     const { data: regulation, error: fetchError } = await supabase
       .from('regulations')
       .select('*')
       .eq('id', regulation_id)
-      .single()
+      .single();
 
     if (fetchError || !regulation) {
-      throw new Error(`Failed to fetch regulation: ${fetchError?.message}`)
+      throw new Error(`Failed to fetch regulation: ${fetchError?.message}`);
     }
 
-    console.log(`Analyzing regulation: ${regulation.judul_lengkap}`)
+    console.log(`Analyzing regulation: ${regulation.judul_lengkap}`);
 
-    // Check if old regulation exists (look for revocation patterns)
-    const oldRegulationInfo = await findOldRegulation(regulation, supabase)
-
+    // Extract complete metadata from full_text
+    const extractedMetadata = extractCompleteMetadata(regulation.full_text || '');
+    
+    // Check if old regulation exists
+    const oldRegulationInfo = await findOldRegulation(regulation, supabase);
+    
     // Generate AI analysis
-    const analysis = await generateAIAnalysis(regulation, oldRegulationInfo)
-    const sectorImpacts = await generateSectorImpacts(regulation)
+    const analysis = await generateAIAnalysis(regulation, oldRegulationInfo);
+    const sectorImpacts = await generateSectorImpacts(regulation);
 
-    // Store analysis results
+    // Store analysis results with complete metadata
+    const updateData = {
+      ai_analysis: analysis,
+      sector_impacts: sectorImpacts,
+      analysis_confidence: analysis.overall_confidence,
+      last_analyzed_at: new Date().toISOString(),
+      // Add the missing metadata fields
+      tanggal_penetapan: extractedMetadata.tanggal_penetapan || regulation.tanggal_penetapan,
+      tempat_penetapan: extractedMetadata.tempat_penetapan || regulation.tempat_penetapan,
+      tanggal_pengundangan: extractedMetadata.tanggal_pengundangan || regulation.tanggal_pengundangan,
+      // Store complete extracted metadata as JSON
+      meta_data: {
+        ...extractedMetadata,
+        extraction_timestamp: new Date().toISOString(),
+        source: 'ai_analysis'
+      }
+    };
+
     const { error: updateError } = await supabase
       .from('regulations')
-      .update({
-        ai_analysis: analysis,
-        sector_impacts: sectorImpacts,
-        analysis_confidence: analysis.overall_confidence,
-        last_analyzed_at: new Date().toISOString()
-      })
-      .eq('id', regulation_id)
+      .update(updateData)
+      .eq('id', regulation_id);
 
     if (updateError) {
-      throw new Error(`Failed to store analysis: ${updateError.message}`)
+      throw new Error(`Failed to store analysis: ${updateError.message}`);
     }
 
-    console.log(`Successfully analyzed regulation ${regulation_id}`)
+    console.log(`Successfully analyzed regulation ${regulation_id}`);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        regulation_id,
-        analysis,
-        sector_impacts: sectorImpacts,
-        confidence: analysis.overall_confidence
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
-    )
+    return new Response(JSON.stringify({
+      success: true,
+      regulation_id,
+      analysis,
+      sector_impacts: sectorImpacts,
+      confidence: analysis.overall_confidence,
+      extracted_metadata: extractedMetadata
+    }), {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      },
+      status: 200
+    });
 
   } catch (error) {
-    console.error('Analysis error:', error)
-    return new Response(
-      JSON.stringify({ 
-        error: error.message,
-        timestamp: new Date().toISOString()
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      }
-    )
+    console.error('Analysis error:', error);
+    return new Response(JSON.stringify({
+      error: error.message,
+      timestamp: new Date().toISOString()
+    }), {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      },
+      status: 500
+    });
   }
-})
+});
 
-async function findOldRegulation(regulation: RegulationData, supabase: any) {
+// NEW FUNCTION: Extract complete metadata from document text
+function extractCompleteMetadata(text) {
+  const metadata = {};
+
+  // Extract tanggal_penetapan and tempat_penetapan
+  const signingMatch = text.match(
+    /Ditetapkan di\s+(.+?)\s+pada tanggal\s+(.+?)\s+(.+?),?\s*ttd\s+(.+?)(?=\n|$)/i
+  );
+  
+  if (signingMatch) {
+    metadata.tempat_penetapan = signingMatch[1].trim();
+    metadata.tanggal_penetapan = signingMatch[2].trim();
+    metadata.jabatan_penandatangan = signingMatch[3].trim();
+    metadata.nama_penandatangan = signingMatch[4].trim();
+  }
+
+  // Extract tanggal_pengundangan
+  const pengundanganMatch = text.match(
+    /Diundangkan di\s+(.+?)\s+pada tanggal\s+(.+?)/i
+  );
+  
+  if (pengundanganMatch) {
+    metadata.tanggal_pengundangan = pengundanganMatch[2].trim();
+    metadata.tempat_pengundangan = pengundanganMatch[1].trim();
+  }
+
+  // Extract other useful metadata
+  const nomorMatch = text.match(/NOMOR\s+(\d+\s+TAHUN\s+\d{4})/i);
+  if (nomorMatch) {
+    metadata.nomor = nomorMatch[1].trim();
+  }
+
+  const tahunMatch = text.match(/TAHUN\s+(\d{4})/i);
+  if (tahunMatch) {
+    metadata.tahun = tahunMatch[1].trim();
+  }
+
+  return metadata;
+}
+
+async function findOldRegulation(regulation, supabase) {
   try {
-    // Look for revocation patterns in menimbang or full_text
+    // Look for revocation patterns
     const revocationPatterns = [
       /perlu dilakukan perubahan/i,
       /dicabut dan dinyatakan tidak berlaku/i,
       /mengubah.*peraturan/i,
       /mencabut.*peraturan/i
-    ]
+    ];
 
     const hasRevocation = revocationPatterns.some(pattern => 
       pattern.test(regulation.menimbang || '') || 
       pattern.test(regulation.full_text || '')
-    )
+    );
 
     if (!hasRevocation) {
-      return null
+      return null;
     }
 
     // Extract regulation numbers from text
-    const numberPattern = /(?:peraturan|undang-undang).*?nomor\s*(\d+)\s*tahun\s*(\d{4})/gi
-    const matches = [...(regulation.menimbang || '').matchAll(numberPattern)]
+    const numberPattern = /(?:peraturan|undang-undang).*?nomor\s*(\d+)\s*tahun\s*(\d{4})/gi;
+    const matches = [...(regulation.menimbang || '').matchAll(numberPattern)];
 
     if (matches.length > 0) {
-      const [, number, year] = matches[0]
+      const [, number, year] = matches[0];
       
       // Try to find the old regulation in database
       const { data: oldRegulation } = await supabase
@@ -198,32 +216,34 @@ async function findOldRegulation(regulation: RegulationData, supabase: any) {
         .select('*')
         .eq('nomor', number)
         .eq('tahun', parseInt(year))
-        .single()
+        .single();
 
-      return oldRegulation
+      return oldRegulation;
     }
 
-    return null
+    return null;
   } catch (error) {
-    console.warn('Error finding old regulation:', error)
-    return null
+    console.warn('Error finding old regulation:', error);
+    return null;
   }
 }
 
-async function generateAIAnalysis(regulation: RegulationData, oldRegulation: any): Promise<AIAnalysis> {
-  const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
+async function generateAIAnalysis(regulation, oldRegulation) {
+  const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
   if (!geminiApiKey) {
-    throw new Error('Gemini API key not configured')
+    throw new Error('Gemini API key not configured');
   }
 
-  const prompt = createAnalysisPrompt(regulation, oldRegulation)
+  const prompt = createAnalysisPrompt(regulation, oldRegulation);
 
   try {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           contents: [{
             parts: [{ text: prompt }]
@@ -236,38 +256,48 @@ async function generateAIAnalysis(regulation: RegulationData, oldRegulation: any
           }
         })
       }
-    )
+    );
 
     if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status}`)
+      const errorText = await response.text();
+      console.error('Gemini API error response:', errorText);
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
 
-    const result = await response.json()
-    const analysisText = result.candidates[0].content.parts[0].text
+    const result = await response.json();
+    
+    if (!result.candidates || !result.candidates[0] || !result.candidates[0].content) {
+      console.error('Invalid Gemini response structure:', result);
+      throw new Error('Invalid response structure from Gemini API');
+    }
+
+    const analysisText = result.candidates[0].content.parts[0].text;
+    console.log('Raw analysis text:', analysisText.substring(0, 500) + '...');
 
     // Parse the structured response
-    return parseAIAnalysis(analysisText, oldRegulation !== null)
-
+    return parseAIAnalysis(analysisText, oldRegulation !== null);
   } catch (error) {
-    console.error('Gemini API error:', error)
-    throw new Error(`AI analysis failed: ${error.message}`)
+    console.error('Gemini API error:', error);
+    throw new Error(`AI analysis failed: ${error.message}`);
   }
 }
 
-async function generateSectorImpacts(regulation: RegulationData): Promise<SectorImpact[]> {
-  const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
+async function generateSectorImpacts(regulation) {
+  const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
   if (!geminiApiKey) {
-    throw new Error('Gemini API key not configured')
+    throw new Error('Gemini API key not configured');
   }
 
-  const prompt = createSectorImpactPrompt(regulation)
+  const prompt = createSectorImpactPrompt(regulation);
 
   try {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           contents: [{
             parts: [{ text: prompt }]
@@ -280,24 +310,32 @@ async function generateSectorImpacts(regulation: RegulationData): Promise<Sector
           }
         })
       }
-    )
+    );
 
     if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status}`)
+      const errorText = await response.text();
+      console.error('Sector impact API error:', errorText);
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
 
-    const result = await response.json()
-    const impactText = result.candidates[0].content.parts[0].text
+    const result = await response.json();
+    
+    if (!result.candidates || !result.candidates[0] || !result.candidates[0].content) {
+      console.error('Invalid sector impact response:', result);
+      throw new Error('Invalid response structure from Gemini API');
+    }
 
-    return parseSectorImpacts(impactText)
+    const impactText = result.candidates[0].content.parts[0].text;
+    console.log('Raw sector impact text:', impactText);
 
+    return parseSectorImpacts(impactText);
   } catch (error) {
-    console.error('Sector impact analysis error:', error)
-    throw new Error(`Sector impact analysis failed: ${error.message}`)
+    console.error('Sector impact analysis error:', error);
+    throw new Error(`Sector impact analysis failed: ${error.message}`);
   }
 }
 
-function createAnalysisPrompt(regulation: RegulationData, oldRegulation: any): string {
+function createAnalysisPrompt(regulation, oldRegulation) {
   return `# Indonesian Regulatory AI Analysis
 
 You are an AI legal analyst specializing in Indonesian regulatory interpretation. Analyze the provided regulation with absolute neutrality, using factual descriptors and direct legal text references.
@@ -317,33 +355,33 @@ You are an AI legal analyst specializing in Indonesian regulatory interpretation
 
 ${oldRegulation ? `**Previous Regulation Available**: ${oldRegulation.judul_lengkap} (${oldRegulation.nomor}/${oldRegulation.tahun})` : '**Previous Regulation**: Not available in system'}
 
-## Required Analysis Structure:
+## CRITICAL: You MUST provide analysis in the exact format below:
 
-### 1. Background (2-3 sentences maximum)
-Summarize the "mengingat" and "menimbang" clauses using this template:
-"The Government previously enacted [Previous Regulation] on [Subject], which [brief description]. In order to [stated objective], [Authority] issued [New Regulation] on [Subject], effective [date]. This regulation [action taken] [number] existing frameworks."
+### 1. Background
+[2-3 sentences about the regulation background]
 
-### 2. Key Points (4-6 points)
-Extract main provisions using format:
-"[Title] - [Specific requirement]. (Art. [X])"
+### 2. Key Points
+[4-6 bullet points of main provisions with article references]
 
 ### 3. Old vs New Comparison
-${oldRegulation ? 'Create side-by-side comparison table showing specific changes' : 'Display: "Previous regulation not available in system"'}
+${oldRegulation ? '[Create comparison table]' : 'Previous regulation not available in system'}
 
-### 4. Why It Matters for Business (3-4 sentences)
-Focus on practical implications: risks, compliance requirements, financial impact, timeline.
+### 4. Why It Matters for Business
+[3-4 sentences about business implications]
 
-### 5. Action Checklist (5-8 items)
-Generate actionable items with format:
-"□ [Action with timeline/reference] *AI Generated"
+### 5. Action Checklist
+□ [Action item 1] *AI Generated
+□ [Action item 2] *AI Generated  
+□ [Action item 3] *AI Generated
+□ [Action item 4] *AI Generated
+□ [Action item 5] *AI Generated
 
-Provide your analysis confidence percentage and include disclaimer: "AI Analysis is provided for guidance only. Always verify regulation interpretations with legal experts."
+**Analysis Confidence**: 85%
 
-Use Indonesian article citation format: (Art. [number]) or (Arts. [X]-[Y])
-Avoid promotional language. Use specific numbers and measurable changes only.`
+IMPORTANT: You MUST include the Action Checklist with at least 5 items in the exact format shown above.`;
 }
 
-function createSectorImpactPrompt(regulation: RegulationData): string {
+function createSectorImpactPrompt(regulation) {
   return `# Sector Impact Classification
 
 Analyze this Indonesian regulation and identify 4-5 business sectors most impacted.
@@ -355,105 +393,148 @@ Analyze this Indonesian regulation and identify 4-5 business sectors most impact
 **Available Sectors**:
 ${AVAILABLE_SECTORS.map(sector => `- ${sector}`).join('\n')}
 
-**Impact Rating Criteria**:
-- **High**: Revokes existing law with penalties involved
-- **Medium**: Changes definitions/requirements but not core provisions  
-- **Low**: Administrative updates only
+**CRITICAL: You MUST respond in this EXACT format:**
 
-**Required Output Format**:
-For each of 4-5 sectors, provide:
 Sector: [Exact sector name from list]
 Impact Level: [High/Medium/Low]
 Rationale: [One sentence with article reference]
 Confidence: [0.0-1.0]
 
-Select only from the available sectors list. Provide factual rationales with specific article references.`
+Sector: [Another exact sector name from list]
+Impact Level: [High/Medium/Low]
+Rationale: [One sentence with article reference]
+Confidence: [0.0-1.0]
+
+[Continue for 4-5 sectors total]
+
+IMPORTANT: 
+- Use ONLY sector names from the provided list
+- Include exactly 4-5 sectors
+- Follow the exact format above`;
 }
 
-function parseAIAnalysis(analysisText: string, hasOldRegulation: boolean): AIAnalysis {
-  // This is a simplified parser - in production, you'd want more robust parsing
-  const sections = analysisText.split(/###?\s*\d+\.?\s*/);
+// IMPROVED: Better parsing functions
+function parseAIAnalysis(analysisText, hasOldRegulation) {
+  console.log('Parsing analysis text:', analysisText.substring(0, 200) + '...');
   
-  return {
-    background: extractSection(analysisText, 'Background') || 'Analysis background not available',
-    key_points: parseKeyPoints(extractSection(analysisText, 'Key Points') || ''),
-    old_new_comparison: hasOldRegulation ? parseComparison(extractSection(analysisText, 'Comparison') || '') : null,
-    business_impact: extractSection(analysisText, 'Why It Matters') || 'Business impact analysis not available',
-    action_checklist: parseActionChecklist(extractSection(analysisText, 'Action Checklist') || ''),
-    overall_confidence: extractConfidence(analysisText)
+  try {
+    return {
+      background: extractSection(analysisText, 'Background') || 'Analysis background not available',
+      key_points: parseKeyPoints(extractSection(analysisText, 'Key Points') || ''),
+      old_new_comparison: hasOldRegulation ? 
+        parseComparison(extractSection(analysisText, 'Old vs New Comparison') || '') : 
+        null,
+      business_impact: extractSection(analysisText, 'Why It Matters for Business') || 
+        'Business impact analysis not available',
+      action_checklist: parseActionChecklist(extractSection(analysisText, 'Action Checklist') || ''),
+      overall_confidence: extractConfidence(analysisText) || 0.85
+    };
+  } catch (error) {
+    console.error('Error parsing AI analysis:', error);
+    // Return fallback structure
+    return {
+      background: 'Analysis parsing failed',
+      key_points: [],
+      old_new_comparison: null,
+      business_impact: 'Analysis parsing failed',
+      action_checklist: [],
+      overall_confidence: 0.5
+    };
   }
 }
 
-function parseSectorImpacts(impactText: string): SectorImpact[] {
-  const impacts: SectorImpact[] = []
-  const lines = impactText.split('\n')
+function parseSectorImpacts(impactText) {
+  console.log('Parsing sector impacts:', impactText);
   
-  let currentImpact: Partial<SectorImpact> = {}
+  const impacts = [];
+  const lines = impactText.split('\n').filter(line => line.trim());
+  
+  let currentImpact = {};
   
   for (const line of lines) {
-    if (line.startsWith('Sector:')) {
-      if (currentImpact.sector) {
-        impacts.push(currentImpact as SectorImpact)
+    const trimmedLine = line.trim();
+    
+    if (trimmedLine.startsWith('Sector:')) {
+      // Save previous impact if complete
+      if (currentImpact.sector && currentImpact.impact_level) {
+        impacts.push({...currentImpact});
       }
-      currentImpact = { sector: line.replace('Sector:', '').trim() }
-    } else if (line.startsWith('Impact Level:')) {
-      currentImpact.impact_level = line.replace('Impact Level:', '').trim() as 'High' | 'Medium' | 'Low'
-    } else if (line.startsWith('Rationale:')) {
-      currentImpact.rationale = line.replace('Rationale:', '').trim()
-    } else if (line.startsWith('Confidence:')) {
-      currentImpact.confidence = parseFloat(line.replace('Confidence:', '').trim())
+      
+      // Start new impact
+      currentImpact = {
+        sector: trimmedLine.replace('Sector:', '').trim()
+      };
+    } else if (trimmedLine.startsWith('Impact Level:')) {
+      currentImpact.impact_level = trimmedLine.replace('Impact Level:', '').trim();
+    } else if (trimmedLine.startsWith('Rationale:')) {
+      currentImpact.rationale = trimmedLine.replace('Rationale:', '').trim();
+    } else if (trimmedLine.startsWith('Confidence:')) {
+      currentImpact.confidence = parseFloat(trimmedLine.replace('Confidence:', '').trim()) || 0.8;
     }
   }
   
-  if (currentImpact.sector) {
-    impacts.push(currentImpact as SectorImpact)
+  // Add the last impact
+  if (currentImpact.sector && currentImpact.impact_level) {
+    impacts.push(currentImpact);
   }
   
-  return impacts.slice(0, 5) // Ensure max 5 sectors
+  console.log('Parsed impacts:', impacts);
+  return impacts.slice(0, 5); // Ensure max 5 sectors
 }
 
-function extractSection(text: string, sectionName: string): string | null {
-  const regex = new RegExp(`###?\\s*\\d*\\.?\\s*${sectionName}[^#]*?([\\s\\S]*?)(?=###|$)`, 'i')
-  const match = text.match(regex)
-  return match ? match[1].trim() : null
+function extractSection(text, sectionName) {
+  const regex = new RegExp(`###?\\s*\\d*\\.?\\s*${sectionName}[^#]*?([\\s\\S]*?)(?=###|$)`, 'i');
+  const match = text.match(regex);
+  return match ? match[1].trim() : null;
 }
 
-function parseKeyPoints(text: string): AIAnalysis['key_points'] {
-  const points = text.split(/[-•]\s*/).filter(p => p.trim())
+function parseKeyPoints(text) {
+  if (!text) return [];
+  
+  const points = text.split(/[-•]\s*/).filter(p => p.trim());
   return points.slice(0, 6).map((point, index) => ({
     title: `Key Point ${index + 1}`,
     description: point.trim(),
     article: extractArticleReference(point) || '',
     confidence: 0.85
-  }))
+  }));
 }
 
-function parseComparison(text: string): AIAnalysis['old_new_comparison'] {
-  // Simplified comparison parsing
+function parseComparison(text) {
   return [{
     aspect: 'Main Changes',
     old_text: 'Previous provisions',
     new_text: 'Updated provisions',
     article: 'Various articles'
-  }]
+  }];
 }
 
-function parseActionChecklist(text: string): AIAnalysis['action_checklist'] {
-  const items = text.split(/[□☐]\s*/).filter(item => item.trim())
-  return items.slice(0, 8).map((item, index) => ({
+function parseActionChecklist(text) {
+  if (!text) return [];
+  
+  console.log('Parsing action checklist from:', text);
+  
+  // Look for checkbox items
+  const checkboxPattern = /[□☐]\s*(.+?)(?=\s*[□☐]|\*AI Generated|$)/gs;
+  const matches = [...text.matchAll(checkboxPattern)];
+  
+  const items = matches.map((match, index) => ({
     id: `action_${index + 1}`,
-    task: item.trim(),
-    article_reference: extractArticleReference(item),
+    task: match[1].trim().replace('*AI Generated', '').trim(),
+    article_reference: extractArticleReference(match[1]),
     is_ai_generated: true
-  }))
+  }));
+  
+  console.log('Parsed action items:', items);
+  return items.slice(0, 8);
 }
 
-function extractArticleReference(text: string): string | null {
-  const match = text.match(/\(Arts?\.\s*[\d\-,\s]+\)/i)
-  return match ? match[0] : null
+function extractArticleReference(text) {
+  const match = text.match(/\(Arts?\.\s*[\d\-,\s]+\)/i);
+  return match ? match[0] : null;
 }
 
-function extractConfidence(text: string): number {
-  const match = text.match(/confidence[:\s]*(\d+(?:\.\d+)?)\s*%/i)
-  return match ? parseFloat(match[1]) / 100 : 0.85
+function extractConfidence(text) {
+  const match = text.match(/(?:confidence[:\s]*|Analysis Confidence[:\s]*)(\d+(?:\.\d+)?)\s*%/i);
+  return match ? parseFloat(match[1]) / 100 : null;
 }
