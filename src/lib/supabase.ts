@@ -37,6 +37,7 @@ export type Database = {
           sector_impacts: unknown | null;
           analysis_confidence: number | null;
           last_analyzed_at: string | null;
+          meta_data: unknown | null;
         };
         Insert: {
           id?: string;
@@ -62,6 +63,7 @@ export type Database = {
           sector_impacts?: unknown | null;
           analysis_confidence?: number | null;
           last_analyzed_at?: string | null;
+          meta_data?: unknown | null;
         };
         Update: {
           id?: string;
@@ -87,6 +89,7 @@ export type Database = {
           sector_impacts?: unknown | null;
           analysis_confidence?: number | null;
           last_analyzed_at?: string | null;
+          meta_data?: unknown | null;
         };
       };
       document_chunks: {
