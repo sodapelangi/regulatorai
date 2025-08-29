@@ -357,31 +357,31 @@ export function RegulationDetail({
         {/* Clean Tab Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
           <div className="bg-white rounded-lg border border-gray-200 p-1">
-            <TabsList className="grid w-full grid-cols-4 bg-transparent gap-1">
+            <TabsList className="grid w-full grid-cols-4 bg-gray-100 gap-1">
               <TabsTrigger 
                 value="overview" 
-                className="flex items-center gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-blue-200 rounded-md border border-transparent"
+                className="flex items-center gap-2 data-[state=active]:bg-blue-500 data-[state=active]:text-white rounded-md"
               >
                 <Info className="h-4 w-4" />
                 Overview
               </TabsTrigger>
               <TabsTrigger 
                 value="analysis" 
-                className="flex items-center gap-2 data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 data-[state=active]:border-purple-200 rounded-md border border-transparent"
+                className="flex items-center gap-2 data-[state=active]:bg-purple-500 data-[state=active]:text-white rounded-md"
               >
                 <Brain className="h-4 w-4" />
                 AI Analysis
               </TabsTrigger>
               <TabsTrigger 
                 value="actions" 
-                className="flex items-center gap-2 data-[state=active]:bg-green-50 data-[state=active]:text-green-700 data-[state=active]:border-green-200 rounded-md border border-transparent"
+                className="flex items-center gap-2 data-[state=active]:bg-green-500 data-[state=active]:text-white rounded-md"
               >
                 <CheckCircle2 className="h-4 w-4" />
                 Actions ({completedTasks}/{totalTasks})
               </TabsTrigger>
               <TabsTrigger 
                 value="history" 
-                className="flex items-center gap-2 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-700 data-[state=active]:border-orange-200 rounded-md border border-transparent"
+                className="flex items-center gap-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white rounded-md"
               >
                 <History className="h-4 w-4" />
                 History
@@ -499,7 +499,26 @@ export function RegulationDetail({
                         <TrendingUp className="h-5 w-5 text-green-600" />
                         Sector Impact
                       </CardTitle>
-                      {isEditing && <Badge variant="outline" className="text-xs">Edit Mode</Badge>}
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setIsEditing(!isEditing)}
+                          className="flex items-center gap-2"
+                        >
+                          <Edit2 className="h-3 w-3" />
+                          {isEditing ? "Done" : "Edit"}
+                        </Button>
+                        {isEditing && <Badge variant="outline" className="text-xs">Edit Mode</Badge>}
+                      </div>
+                    </div>
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-4">
+                      <div className="flex items-start gap-2">
+                        <Brain className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                        <p className="text-sm text-amber-700">
+                          <strong>AI Generated</strong> - Please double check these sector impacts with legal experts
+                        </p>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
