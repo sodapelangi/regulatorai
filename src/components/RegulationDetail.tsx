@@ -333,14 +333,6 @@ export function RegulationDetail({
               </Button>
               <Button 
                 variant="outline" 
-                onClick={() => setIsEditing(!isEditing)}
-                className="flex items-center gap-2"
-              >
-                <Edit2 className="h-4 w-4" />
-                {isEditing ? "Done" : "Edit"}
-              </Button>
-              <Button 
-                variant="outline" 
                 onClick={handleReanalyze}
                 disabled={isAnalyzing}
                 className="flex items-center gap-2"
