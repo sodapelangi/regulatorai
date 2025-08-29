@@ -222,10 +222,6 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
                 <FileText className="mr-2 h-4 w-4" />
                 Upload Document
               </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <TrendingUp className="mr-2 h-4 w-4" />
-                Generate Report
-              </Button>
             </CardContent>
           </Card>
 
