@@ -13,7 +13,7 @@ import { Progress } from "./ui/progress";
 import { Brain, Edit2, ArrowLeft, BookmarkPlus, User, Calendar, CheckCircle2, Clock, AlertTriangle, Plus, Info, FileText, MapPin, History, Eye, Settings, MessageSquare, Send, Users, ExternalLink, Search, Shield, TrendingUp, Building2, Gavel, AlertCircleIcon } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface RegulationDetailProps {
   regulation: {
