@@ -50,9 +50,9 @@ export const workspaceApi = {
       .from('user_workspaces')
       .select('id')
       .eq('regulation_id', regulationId)
-      .single();
+      .limit(1);
 
-    if (existing) {
+    if (existing && existing.length > 0) {
       throw new Error('Regulation already in workspace');
     }
 
