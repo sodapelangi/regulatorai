@@ -70,6 +70,15 @@ export function Navigation({ activeMenu, onMenuChange }: NavigationProps) {
                 3
               </Badge>
             </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => onMenuChange("settings")}
+              className="flex items-center gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              <span>Settings</span>
+            </Button>
       
           </div>
         </div>
