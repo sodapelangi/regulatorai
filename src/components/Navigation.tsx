@@ -70,27 +70,7 @@ export function Navigation({ activeMenu, onMenuChange }: NavigationProps) {
                 3
               </Badge>
             </Button>
-            
-            {/* Direct buttons instead of dropdown for testing */}
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => onMenuChange("upload-peraturan")}
-              className="flex items-center gap-2"
-            >
-              <Upload className="h-4 w-4" />
-              <span>Upload</span>
-            </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => onMenuChange("settings")}
-              className="flex items-center gap-2"
-            >
-              <Settings className="h-4 w-4" />
-              <span>Settings</span>
-            </Button>
+      
           </div>
         </div>
       </div>
