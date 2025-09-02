@@ -366,19 +366,63 @@ ${oldRegulation ? `**Previous Regulation Available**: ${oldRegulation.judul_leng
 ### 3. Old vs New Comparison
 ${oldRegulation ? '[Create comparison table]' : 'Previous regulation not available in system'}
 
-### 4. Why It Matters for Business
-[3-4 sentences about business implications]
+### 4.  Why It Matters for Business
+    **Content**: Focus on practical business implications
+    **Style**: Use factual statements about risks, compliance requirements, and operational changes
+    **Length**: 4-7 sentences maximum
 
-### 5. Action Checklist
-□ [Action item 1] *AI Generated
-□ [Action item 2] *AI Generated  
-□ [Action item 3] *AI Generated
-□ [Action item 4] *AI Generated
-□ [Action item 5] *AI Generated
+    **Structure**:
+    1. Primary business risk/opportunity
+    2. Specific compliance implications  
+    3. Financial/operational impact
+    4. Timeline considerations (if applicable)
 
-**Analysis Confidence**: 85%
+    ### 6. Recommended Action Checklist
+    **Requirements**:
+    - Generate 5-8 actionable items
+    - Mark as "*AI Generated"
+    - Use imperative verbs
+    - Include specific timeframes where applicable
+    - Reference relevant articles
 
-IMPORTANT: You MUST include the Action Checklist with at least 5 items in the exact format shown above.`;
+    **Format**:
+    ```
+    Recommended Action Checklist *AI Generated
+
+    □ [Action item with specific deadline/reference]
+    □ [Action item with specific deadline/reference]
+    □ [Action item with specific deadline/reference]
+    ```
+
+    ## Output Requirements
+
+    ### Confidence Level
+    State AI confidence percentage in matching requirements and include disclaimer:
+    "AI Analysis is provided for guidance only. Always verify regulation interpretations with legal experts."
+
+    ### Legal Referencing Standards
+    - Use Indonesian article citation format: (Art. [number])
+    - For multiple articles: (Arts. [X]-[Y]) or (Arts. [X], [Y], [Z])
+    - Include regulation number and year in first reference
+    - Use consistent abbreviation format
+
+    ### Language Guidelines
+    - *Absolute neutrality : no personal opinions, promotional language or emotional expressions
+    - Avoids aggregated adjective (very important, ground breaking), instead using factual descriptors (maximum fines increased) 
+    Prioritized data and direct legal text over narrative commentary
+    - **Preferred**: Specific numbers, dates, and measurable changes
+    - **Prohibited**: Subjective assessments, comparative superlatives, promotional language
+
+    ## Quality Checklist
+    Before finalizing analysis, verify:
+    - [ ] All article references are accurate
+    - [ ] No promotional or subjective language used
+    - [ ] Sector impacts have clear rationales
+    - [ ] Action items are specific and actionable
+    - [ ] Comparison table shows concrete differences (when applicable)
+    - [ ] Business implications are practical and measurable
+
+;
 }
 
 function createSectorImpactPrompt(regulation) {
