@@ -766,39 +766,128 @@ export function RegulationDetail({
                 </div>
               </CardHeader>
               <CardContent className="p-6 space-y-4">
-                {checklist.map((item) => (
-                  <div key={item.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-all">
-                    <div className="flex items-start space-x-4">
-                      <Checkbox
-                        checked={item.completed}
-                        onCheckedChange={() => handleToggleChecklistItem(item.id)}
-                        className="mt-1 h-5 w-5"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <p className={`text-base ${item.completed ? 'line-through text-gray-500' : 'text-gray-900'} leading-relaxed`}>
-                            {item.task}
-                          </p>
-                          <div className="flex items-center gap-3 ml-4">
-                            {item.isAiGenerated && (
-                              <Badge variant="secondary" className="text-xs">
-                                <Brain className="h-3 w-3 mr-1" />
-                                AI Generated
-                              </Badge>
-                            )}
-                            {item.completed ? (
-                              <CheckCircle2 className="h-5 w-5 text-green-500" />
-                            ) : (
-                              <Clock className="h-5 w-5 text-orange-500" />
-                            )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* History Tab */}
+          <TabsContent value="history" className="space-y-6">
+            <Card className="border-gray-200">
+              <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-t-lg">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <History className="h-6 w-6 text-orange-600" />
+                  Activity Timeline
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-6">
+                {/* AI Suggestions Section */}
+                {aiChecklist.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Brain className="h-5 w-5 text-purple-600" />
+                        <h3 className="text-lg font-semibold text-gray-900">AI Suggestions</h3>
+                        <Badge variant="secondary" className="text-xs">
+                          {aiChecklist.length} items
+                        </Badge>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleCopyAIChecklist}
+                        className="flex items-center gap-2"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Copy to My Tasks
+                      </Button>
+                    </div>
+                    
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                      <div className="space-y-3">
+                        {aiChecklist.map((item) => (
+                          <div key={item.id} className="flex items-start gap-3">
+                            <div className="mt-1 h-4 w-4 rounded border-2 border-purple-300 bg-purple-100" />
+                            <div className="flex-1">
+                              <p className="text-sm text-purple-900 leading-relaxed">{item.task}</p>
+                              {item.article_reference && (
+                                <Badge variant="outline" className="mt-2 text-xs">
+                                  {item.article_reference}
+                                </Badge>
+                              )}
+                            </div>
+                            <Badge variant="secondary" className="text-xs">
+                              *AI Generated
+                            </Badge>
                           </div>
-                        </div>
+                        ))}
                       </div>
                     </div>
                   </div>
-                ))}
+                )}
+
+                {/* User Tasks Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <User className="h-5 w-5 text-blue-600" />
+                    <h3 className="text-lg font-semibold text-gray-900">My Tasks</h3>
+                    <Badge variant="secondary" className="text-xs">
+                      {userChecklist.length} items
+                    </Badge>
+                  </div>
+                  
+                  {userChecklist.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                      <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                      <p>No tasks added yet. Add your first task below or copy AI suggestions.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {userChecklist.map((item) => (
+                        <div key={item.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-all">
+                          <div className="flex items-start space-x-4">
+                            <Checkbox
+                              checked={item.completed}
+                              onCheckedChange={() => handleToggleChecklistItem(item.id, item.source)}
+                              className="mt-1 h-5 w-5"
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <p className={`text-base ${item.completed ? 'line-through text-gray-500' : 'text-gray-900'} leading-relaxed`}>
+                                  {item.task}
+                                </p>
+                                <div className="flex items-center gap-3 ml-4">
+                                  <Badge variant="outline" className="text-xs">
+                                    *User Input
+                                  </Badge>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleRemoveUserChecklistItem(item.id)}
+                                    className="text-red-600 hover:text-red-700 h-6 w-6 p-0"
+                                  >
+                                    ×
+                                  </Button>
+                                  {item.completed ? (
+                                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                  ) : (
+                                    <Clock className="h-5 w-5 text-orange-500" />
+                                  )}
+                                </div>
+                              </div>
+                              {item.article_reference && (
+                                <Badge variant="outline" className="mt-2 text-xs">
+                                  {item.article_reference}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 
-                {/* Add new item */}
+                {/* Add new task section */}
                 <div className="border-t pt-6 mt-6">
                   <div className="flex gap-3">
                     <Input
@@ -818,20 +907,6 @@ export function RegulationDetail({
                     </Button>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* History Tab */}
-          <TabsContent value="history" className="space-y-6">
-            <Card className="border-gray-200">
-              <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-t-lg">
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <History className="h-6 w-6 text-orange-600" />
-                  Activity Timeline
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 space-y-6">
                 {/* Real Activity Timeline */}
                 <div className="space-y-4">
                   {activityHistory.length === 0 ? (

@@ -447,6 +447,139 @@ export const viewTrackingApi = {
   }
 };
 
+// User Checklist API - Direct Supabase calls
+export const userChecklistApi = {
+  // Add item to user checklist
+  async addChecklistItem(regulationId: string, task: string, articleReference?: string) {
+    // Get current user checklist
+    const { data: regulation, error: fetchError } = await supabase
+      .from('regulations')
+      .select('user_checklist')
+      .eq('id', regulationId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    const currentChecklist = regulation.user_checklist || [];
+    const newItem = {
+      id: Date.now().toString(),
+      task: task.trim(),
+      completed: false,
+      created_at: new Date().toISOString(),
+      article_reference: articleReference || null,
+      source: 'user'
+    };
+
+    const updatedChecklist = [...currentChecklist, newItem];
+
+    const { data, error } = await supabase
+      .from('regulations')
+      .update({ user_checklist: updatedChecklist })
+      .eq('id', regulationId)
+      .select('user_checklist')
+      .single();
+
+    if (error) throw error;
+    return { data: newItem, message: 'Checklist item added successfully' };
+  },
+
+  // Update checklist item (toggle completion or edit task)
+  async updateChecklistItem(regulationId: string, itemId: string, updates: {
+    completed?: boolean;
+    task?: string;
+    article_reference?: string;
+  }) {
+    // Get current user checklist
+    const { data: regulation, error: fetchError } = await supabase
+      .from('regulations')
+      .select('user_checklist')
+      .eq('id', regulationId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    const currentChecklist = regulation.user_checklist || [];
+    const updatedChecklist = currentChecklist.map(item => 
+      item.id === itemId 
+        ? { ...item, ...updates, updated_at: new Date().toISOString() }
+        : item
+    );
+
+    const { data, error } = await supabase
+      .from('regulations')
+      .update({ user_checklist: updatedChecklist })
+      .eq('id', regulationId)
+      .select('user_checklist')
+      .single();
+
+    if (error) throw error;
+    return { data: updatedChecklist, message: 'Checklist item updated successfully' };
+  },
+
+  // Remove item from user checklist
+  async removeChecklistItem(regulationId: string, itemId: string) {
+    // Get current user checklist
+    const { data: regulation, error: fetchError } = await supabase
+      .from('regulations')
+      .select('user_checklist')
+      .eq('id', regulationId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    const currentChecklist = regulation.user_checklist || [];
+    const updatedChecklist = currentChecklist.filter(item => item.id !== itemId);
+
+    const { data, error } = await supabase
+      .from('regulations')
+      .update({ user_checklist: updatedChecklist })
+      .eq('id', regulationId)
+      .select('user_checklist')
+      .single();
+
+    if (error) throw error;
+    return { data: updatedChecklist, message: 'Checklist item removed successfully' };
+  },
+
+  // Copy AI checklist items to user checklist
+  async copyAIChecklistToUser(regulationId: string) {
+    // Get both checklists
+    const { data: regulation, error: fetchError } = await supabase
+      .from('regulations')
+      .select('ai_checklist, user_checklist')
+      .eq('id', regulationId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    const aiChecklist = regulation.ai_checklist || [];
+    const currentUserChecklist = regulation.user_checklist || [];
+
+    // Convert AI items to user items with new IDs
+    const copiedItems = aiChecklist.map(aiItem => ({
+      id: `copied_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      task: aiItem.task,
+      completed: false,
+      created_at: new Date().toISOString(),
+      article_reference: aiItem.article_reference || null,
+      source: 'user',
+      copied_from_ai: true
+    }));
+
+    const updatedUserChecklist = [...currentUserChecklist, ...copiedItems];
+
+    const { data, error } = await supabase
+      .from('regulations')
+      .update({ user_checklist: updatedUserChecklist })
+      .eq('id', regulationId)
+      .select('user_checklist')
+      .single();
+
+    if (error) throw error;
+    return { data: copiedItems, message: 'AI checklist items copied to user checklist' };
+  }
+};
+
 // Helper functions (move outside of regulationApi object)
 function transformSectorImpacts(sectorImpacts: any) {
   if (!sectorImpacts || !Array.isArray(sectorImpacts)) {

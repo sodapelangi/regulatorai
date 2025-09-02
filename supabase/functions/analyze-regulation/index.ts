@@ -89,6 +89,7 @@ Deno.serve(async (req) => {
     const updateData = {
       ai_analysis: analysis,
       sector_impacts: sectorImpacts,
+      ai_checklist: analysis.action_checklist || [],
       analysis_confidence: analysis.overall_confidence,
       last_analyzed_at: new Date().toISOString(),
       // Add the missing metadata fields
@@ -426,7 +427,8 @@ ${oldRegulation ? '[Create comparison table]' : 'Previous regulation not availab
 }
 
 function createSectorImpactPrompt(regulation) {
-  return `# Sector Impact Classification
+  return \`# Sector Impact Classification
+}
 
 Analyze this Indonesian regulation and identify 4-5 business sectors most impacted.
 
@@ -527,7 +529,7 @@ function parseSectorImpacts(impactText) {
 }
 
 function extractSection(text, sectionName) {
-  const regex = new RegExp(`###?\\s*\\d*\\.?\\s*${sectionName}[^#]*?([\\s\\S]*?)(?=###|$)`, 'i');
+  const regex = new RegExp(\`###?\\s*\\d*\\.?\\s*${sectionName}[^#]*?([\\s\\S]*?)(?=###|$)`, 'i');
   const match = text.match(regex);
   return match ? match[1].trim() : null;
 }
@@ -537,7 +539,7 @@ function parseKeyPoints(text) {
   
   const points = text.split(/[-•]\s*/).filter(p => p.trim());
   return points.slice(0, 6).map((point, index) => ({
-    title: `Key Point ${index + 1}`,
+    title: \`Key Point ${index + 1}`,
     description: point.trim(),
     article: extractArticleReference(point) || '',
     confidence: 0.85
@@ -563,7 +565,7 @@ function parseActionChecklist(text) {
   const matches = [...text.matchAll(checkboxPattern)];
   
   const items = matches.map((match, index) => ({
-    id: `action_${index + 1}`,
+    id: \`action_${index + 1}`,
     task: match[1].trim().replace('*AI Generated', '').trim(),
     article_reference: extractArticleReference(match[1]),
     is_ai_generated: true
