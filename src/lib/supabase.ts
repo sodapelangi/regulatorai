@@ -38,6 +38,8 @@ export type Database = {
           analysis_confidence: number | null;
           last_analyzed_at: string | null;
           meta_data: unknown | null;
+          ai_checklist: unknown | null;
+          user_checklist: unknown | null;
         };
         Insert: {
           id?: string;
@@ -64,6 +66,8 @@ export type Database = {
           analysis_confidence?: number | null;
           last_analyzed_at?: string | null;
           meta_data?: unknown | null;
+          ai_checklist?: unknown | null;
+          user_checklist?: unknown | null;
         };
         Update: {
           id?: string;
@@ -90,6 +94,8 @@ export type Database = {
           analysis_confidence?: number | null;
           last_analyzed_at?: string | null;
           meta_data?: unknown | null;
+          ai_checklist?: unknown | null;
+          user_checklist?: unknown | null;
         };
       };
       document_chunks: {

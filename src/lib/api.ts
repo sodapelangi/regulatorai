@@ -544,7 +544,8 @@ export const regulationApi = {
       },
       keyChanges: [],
       whyItMatters: 'Analysis not available',
-      checklist: generateDefaultChecklist(regulation),
+      aiChecklist: regulation.ai_checklist || [],
+      userChecklist: regulation.user_checklist || [],
       aiAnalysis: regulation.ai_analysis || getDefaultAiAnalysis(),
       background: {
         context: regulation.ai_analysis?.background || 'Background analysis not available'
