@@ -202,7 +202,7 @@ export function RegulationDetail({
       };
       
       // Add to database
-      userChecklistApi.addItem(regulation.id, newItem.task, newItem.article_reference)
+      userChecklistApi.addChecklistItem(regulation.id, newItem.task, newItem.article_reference)
         .then(() => {
           setUserChecklist([...userChecklist, newItem]);
           toast.success('Task added successfully');
@@ -222,7 +222,11 @@ export function RegulationDetail({
       if (item) {
         const updatedItem = { ...item, completed: !item.completed };
         
-        userChecklistApi.updateItem(regulation.id, itemId, updatedItem.task, updatedItem.completed, updatedItem.article_reference)
+        userChecklistApi.updateChecklistItem(regulation.id, itemId, {
+          task: updatedItem.task,
+          completed: updatedItem.completed,
+          article_reference: updatedItem.article_reference
+        })
           .then(() => {
             setUserChecklist(userChecklist.map(item => 
               item.id === itemId ? updatedItem : item
@@ -237,7 +241,7 @@ export function RegulationDetail({
   };
 
   const handleRemoveUserChecklistItem = (itemId: string) => {
-    userChecklistApi.removeItem(regulation.id, itemId)
+    userChecklistApi.removeChecklistItem(regulation.id, itemId)
       .then(() => {
         setUserChecklist(userChecklist.filter(item => item.id !== itemId));
         toast.success('Task removed');

@@ -478,14 +478,14 @@ export const userChecklistApi = {
         .from('regulations')
         .select('user_checklist')
         .eq('id', regulationId)
-        .single();
+        .limit(1);
 
-      if (fetchError) {
+      if (fetchError || !regulation || regulation.length === 0) {
         console.error('Failed to fetch regulation for checklist:', fetchError);
-        throw new Error(`Failed to fetch regulation: ${fetchError.message}`);
+        throw new Error('Regulation not found');
       }
 
-      const currentChecklist = regulation.user_checklist || [];
+      const currentChecklist = regulation[0].user_checklist || [];
       const newItem = {
         id: Date.now().toString(),
         task: task.trim(),
@@ -502,11 +502,11 @@ export const userChecklistApi = {
         .update({ user_checklist: updatedChecklist })
         .eq('id', regulationId)
         .select('user_checklist')
-        .single();
+        .limit(1);
 
-      if (error) {
+      if (error || !data || data.length === 0) {
         console.error('Failed to update checklist:', error);
-        throw new Error(`Failed to update checklist: ${error.message}`);
+        throw new Error('Failed to update checklist');
       }
       return { data: newItem, message: 'Checklist item added successfully' };
     } catch (error) {
@@ -526,11 +526,13 @@ export const userChecklistApi = {
       .from('regulations')
       .select('user_checklist')
       .eq('id', regulationId)
-      .single();
+      .limit(1);
 
-    if (fetchError) throw fetchError;
+    if (fetchError || !regulation || regulation.length === 0) {
+      throw new Error('Regulation not found');
+    }
 
-    const currentChecklist = regulation.user_checklist || [];
+    const currentChecklist = regulation[0].user_checklist || [];
     const updatedChecklist = currentChecklist.map(item => 
       item.id === itemId 
         ? { ...item, ...updates, updated_at: new Date().toISOString() }
@@ -542,10 +544,12 @@ export const userChecklistApi = {
       .update({ user_checklist: updatedChecklist })
       .eq('id', regulationId)
       .select('user_checklist')
-      .single();
+      .limit(1);
 
-    if (error) throw error;
-    return { data: updatedChecklist, message: 'Checklist item updated successfully' };
+    if (error || !data || data.length === 0) {
+      throw new Error('Failed to update checklist');
+    }
+    return { data: data[0].user_checklist, message: 'Checklist item updated successfully' };
   },
 
   // Remove item from user checklist
@@ -555,11 +559,13 @@ export const userChecklistApi = {
       .from('regulations')
       .select('user_checklist')
       .eq('id', regulationId)
-      .single();
+      .limit(1);
 
-    if (fetchError) throw fetchError;
+    if (fetchError || !regulation || regulation.length === 0) {
+      throw new Error('Regulation not found');
+    }
 
-    const currentChecklist = regulation.user_checklist || [];
+    const currentChecklist = regulation[0].user_checklist || [];
     const updatedChecklist = currentChecklist.filter(item => item.id !== itemId);
 
     const { data, error } = await supabase
@@ -567,10 +573,12 @@ export const userChecklistApi = {
       .update({ user_checklist: updatedChecklist })
       .eq('id', regulationId)
       .select('user_checklist')
-      .single();
+      .limit(1);
 
-    if (error) throw error;
-    return { data: updatedChecklist, message: 'Checklist item removed successfully' };
+    if (error || !data || data.length === 0) {
+      throw new Error('Failed to remove checklist item');
+    }
+    return { data: data[0].user_checklist, message: 'Checklist item removed successfully' };
   },
 
   // Copy AI checklist items to user checklist
@@ -580,12 +588,14 @@ export const userChecklistApi = {
       .from('regulations')
       .select('ai_checklist, user_checklist')
       .eq('id', regulationId)
-      .single();
+      .limit(1);
 
-    if (fetchError) throw fetchError;
+    if (fetchError || !regulation || regulation.length === 0) {
+      throw new Error('Regulation not found');
+    }
 
     const aiChecklist = regulation.ai_checklist || [];
-    const currentUserChecklist = regulation.user_checklist || [];
+    const currentUserChecklist = regulation[0].user_checklist || [];
 
     // Convert AI items to user items with new IDs
     const copiedItems = aiChecklist.map(aiItem => ({
@@ -605,9 +615,11 @@ export const userChecklistApi = {
       .update({ user_checklist: updatedUserChecklist })
       .eq('id', regulationId)
       .select('user_checklist')
-      .single();
+      .limit(1);
 
-    if (error) throw error;
+    if (error || !data || data.length === 0) {
+      throw new Error('Failed to copy AI checklist');
+    }
     return { data: copiedItems, message: 'AI checklist items copied to user checklist' };
   }
 };
