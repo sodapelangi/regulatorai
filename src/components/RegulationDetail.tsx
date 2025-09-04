@@ -76,12 +76,14 @@ interface RegulationDetailProps {
   };
   onBack: () => void;
   onAddToWorkspace: () => void;
+  onRegulationUpdated?: () => void;
 }
 
 export function RegulationDetail({ 
   regulation, 
   onBack, 
-  onAddToWorkspace
+  onAddToWorkspace,
+  onRegulationUpdated
 }: RegulationDetailProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [newChecklistItem, setNewChecklistItem] = useState("");
@@ -298,6 +300,11 @@ export function RegulationDetail({
       if (updatedRegulation.ai_analysis) {
         setAiAnalysis(updatedRegulation.ai_analysis);
         toast.success('AI analysis updated successfully');
+        
+        // Notify parent component to refresh regulation data
+        if (onRegulationUpdated) {
+          onRegulationUpdated();
+        }
         
         // Add to activity history
         setActivityHistory(prev => [{

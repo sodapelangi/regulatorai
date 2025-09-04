@@ -70,6 +70,13 @@ export function IntelligenceWorkspace({ initialRegulationId, onBackToDashboard }
     }
   };
 
+  const handleRegulationUpdated = () => {
+    // Reload the regulation data after updates (like re-analysis)
+    if (selectedRegulationId) {
+      loadRegulationDetail(selectedRegulationId);
+    }
+  };
+
   const handleAddToWorkspace = () => {
     // In a real app, this would update the backend
     console.log("Added to workspace");
@@ -113,6 +120,7 @@ export function IntelligenceWorkspace({ initialRegulationId, onBackToDashboard }
           regulation={selectedRegulation}
           onBack={handleBackToList}
           onAddToWorkspace={handleAddToWorkspace}
+          onRegulationUpdated={handleRegulationUpdated}
           onUpdateSectorImpact={handleUpdateSectorImpact}
           onToggleChecklistItem={handleToggleChecklistItem}
         />
