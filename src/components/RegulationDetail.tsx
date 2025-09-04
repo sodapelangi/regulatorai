@@ -254,7 +254,7 @@ export function RegulationDetail({
       return;
     }
 
-    userChecklistApi.copyAIChecklist(regulation.id, aiChecklist)
+    userChecklistApi.copyAIChecklistToUser(regulation.id, aiChecklist)
       .then(() => {
         const newUserItems = aiChecklist.map(item => ({
           ...item,
