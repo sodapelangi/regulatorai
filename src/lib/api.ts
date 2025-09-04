@@ -505,8 +505,8 @@ export const userChecklistApi = {
         .limit(1);
 
       if (error || !data || data.length === 0) {
-        console.error('Failed to update checklist:', error);
-        throw new Error('Failed to update checklist');
+        console.error('Failed to update checklist - no matching regulation found:', error);
+        throw new Error('Failed to update checklist: No matching regulation found for ID or no rows affected.');
       }
       return { data: newItem, message: 'Checklist item added successfully' };
     } catch (error) {
@@ -543,11 +543,15 @@ export const userChecklistApi = {
       .from('regulations')
       .update({ user_checklist: updatedChecklist })
       .eq('id', regulationId)
-      .select('user_checklist')
-      .limit(1);
+      .select('user_checklist');
 
-    if (error || !data || data.length === 0) {
-      throw new Error('Failed to update checklist');
+    if (error) {
+      console.error('Supabase update error:', error);
+      throw new Error(`Failed to update checklist: ${error.message}`);
+    }
+    
+    if (!data || data.length === 0) {
+      throw new Error('Failed to update checklist: No matching regulation found for ID or no rows affected.');
     }
     return { data: data[0].user_checklist, message: 'Checklist item updated successfully' };
   },
@@ -572,11 +576,15 @@ export const userChecklistApi = {
       .from('regulations')
       .update({ user_checklist: updatedChecklist })
       .eq('id', regulationId)
-      .select('user_checklist')
-      .limit(1);
+      .select('user_checklist');
 
-    if (error || !data || data.length === 0) {
-      throw new Error('Failed to remove checklist item');
+    if (error) {
+      console.error('Supabase update error:', error);
+      throw new Error(`Failed to remove checklist item: ${error.message}`);
+    }
+    
+    if (!data || data.length === 0) {
+      throw new Error('Failed to remove checklist item: No matching regulation found for ID or no rows affected.');
     }
     return { data: data[0].user_checklist, message: 'Checklist item removed successfully' };
   },
@@ -614,11 +622,15 @@ export const userChecklistApi = {
       .from('regulations')
       .update({ user_checklist: updatedUserChecklist })
       .eq('id', regulationId)
-      .select('user_checklist')
-      .limit(1);
+      .select('user_checklist');
 
-    if (error || !data || data.length === 0) {
-      throw new Error('Failed to copy AI checklist');
+    if (error) {
+      console.error('Supabase update error:', error);
+      throw new Error(`Failed to copy AI checklist: ${error.message}`);
+    }
+    
+    if (!data || data.length === 0) {
+      throw new Error('Failed to copy AI checklist: No matching regulation found for ID or no rows affected.');
     }
     return { data: copiedItems, message: 'AI checklist items copied to user checklist' };
   }
