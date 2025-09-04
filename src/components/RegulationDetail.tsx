@@ -770,7 +770,8 @@ export function RegulationDetail({
                             </TableCell>
                           </TableRow>
                         ))}
-                        {(!aiAnalysis?.old_new_comparison && !regulation.aiAnalysis?.old_new_comparison) && (
+                        {(aiAnalysis?.old_new_comparison === null || regulation.aiAnalysis?.old_new_comparison === null || 
+                          (!aiAnalysis?.old_new_comparison && !regulation.aiAnalysis?.old_new_comparison)) && (
                           <TableRow>
                             <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
                               Previous regulation not available in system

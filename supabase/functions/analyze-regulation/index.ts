@@ -279,7 +279,7 @@ function parseAIAnalysis(analysisText, hasOldRegulation) {
     const sections = {
       background: '',
       key_points: [],
-      old_new_comparison: [],
+      old_new_comparison: null,
       business_impact: '',
       action_checklist: [],
       overall_confidence: 0.8
@@ -312,31 +312,46 @@ function parseAIAnalysis(analysisText, hasOldRegulation) {
       const comparisonMatch = analysisText.match(/### 3\. Old vs New Comparison\s*\n(.*?)(?=###|$)/s);
       if (comparisonMatch) {
         const comparisonText = comparisonMatch[1];
-        // Parse table format or bullet points
-        const rows = comparisonText.split('\n').filter(row => row.includes('|') || row.includes('Art.'));
         
-        sections.old_new_comparison = rows.map((row, index) => {
-          const parts = row.split('|').map(part => part.trim());
-          return {
-            article: `Art. ${index + 1}`,
-            old_text: parts[1] || 'Previous version not available',
-            new_text: parts[2] || 'Current version not available'
-          };
-        });
+        // Parse table format - look for rows with | separators
+        const tableRows = comparisonText.split('\n').filter(row => 
+          row.includes('|') && !row.includes('---') && !row.includes('Article')
+        );
+        
+        if (tableRows.length > 0) {
+          sections.old_new_comparison = tableRows.map((row, index) => {
+            const parts = row.split('|').map(part => part.trim()).filter(part => part);
+            return {
+              article: parts[0] || `Art. ${index + 1}`,
+              old_text: parts[1] || 'Previous version not available',
+              new_text: parts[2] || 'Current version not available'
+            };
+          });
+        } else {
+          // If no table format found, keep as null
+          sections.old_new_comparison = null;
+        }
+      } else {
+        // No comparison section found, keep as null
+        sections.old_new_comparison = null;
       }
+    } else {
+      // No old regulation, explicitly set to null
+      sections.old_new_comparison = null;
     }
 
     // Extract Business Impact section
-    const businessMatch = analysisText.match(/### 4\. Why It Matters for Business\s*\n(.*?)(?=###|$)/s);
+    const businessMatch = analysisText.match(/### (?:4|5)\. Why It Matters for Business\s*\n(.*?)(?=###|$)/s);
     if (businessMatch) {
       sections.business_impact = businessMatch[1].trim();
     }
 
     // Extract Action Checklist
-    const checklistMatch = analysisText.match(/### 6\. Recommended Action Checklist\s*\n(.*?)(?=###|$)/s);
+    const checklistMatch = analysisText.match(/### (?:5|6)\. Recommended Action Checklist\s*\n(.*?)(?=###|$)/s);
     if (checklistMatch) {
       const checklistText = checklistMatch[1];
-      const items = checklistText.split(/\n□\s*/).filter(item => item.trim());
+      // Look for items starting with □ (checkbox symbol)
+      const items = checklistText.split(/\n/).filter(line => line.trim().startsWith('□')).map(line => line.replace(/^□\s*/, '').trim()).filter(item => item);
       
       sections.action_checklist = items.map((item, index) => {
         const articleMatch = item.match(/\(Art\.\s*(\d+[a-z]*)\)/i);
@@ -360,7 +375,7 @@ function parseAIAnalysis(analysisText, hasOldRegulation) {
     return {
       background: 'Analysis parsing failed',
       key_points: [],
-      old_new_comparison: [],
+      old_new_comparison: null,
       business_impact: 'Business impact analysis unavailable',
       action_checklist: [],
       overall_confidence: 0.5
@@ -553,7 +568,13 @@ ${oldRegulation ? `**Previous Regulation Available**: ${oldRegulation.judul_leng
 [4-6 bullet points of main provisions with article references]
 
 ### 3. Old vs New Comparison
-${oldRegulation ? '[Create comparison table]' : 'Previous regulation not available in system'}
+${oldRegulation ? `
+| Article | Previous Version | Current Version |
+|---------|------------------|-----------------|
+| Art. X  | [Previous text]  | [Current text]  |
+| Art. Y  | [Previous text]  | [Current text]  |
+
+**Note**: Create actual comparison rows based on the regulation content.` : 'Previous regulation not available in system'}
 
 ### 4.  Why It Matters for Business
     **Content**: Focus on practical business implications
@@ -566,22 +587,19 @@ ${oldRegulation ? '[Create comparison table]' : 'Previous regulation not availab
     3. Financial/operational impact
     4. Timeline considerations (if applicable)
 
-    ### 6. Recommended Action Checklist
+    ### 5. Recommended Action Checklist
     **Requirements**:
     - Generate 5-8 actionable items
-    - Mark as "*AI Generated"
     - Use imperative verbs
     - Include specific timeframes where applicable
     - Reference relevant articles
 
     **Format**:
-    \`\`\`
-    Recommended Action Checklist *AI Generated
-
     □ [Action item with specific deadline/reference]
     □ [Action item with specific deadline/reference]
     □ [Action item with specific deadline/reference]
-    \`\`\`
+    □ [Action item with specific deadline/reference]
+    □ [Action item with specific deadline/reference]
 
     ## Output Requirements
 
