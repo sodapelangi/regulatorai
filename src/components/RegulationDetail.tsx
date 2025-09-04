@@ -14,6 +14,7 @@ import { Brain, Edit2, ArrowLeft, BookmarkPlus, User, Calendar, CheckCircle2, Cl
 import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
+import { userChecklistApi } from "../lib/api";
 
 // UUID validation helper
 const isValidUUID = (uuid: string): boolean => {

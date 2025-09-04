@@ -4,28 +4,36 @@ import { supabase } from './supabase';
 export const workspaceApi = {
   // Get all workspace items
   async getWorkspace() {
-    const { data, error } = await supabase
-      .from('user_workspaces')
-      .select(`
-        *,
-        regulations (
-          id,
-          judul_lengkap,
-          nomor,
-          tahun,
-          tentang,
-          upload_date,
-          tanggal_penetapan,
-          instansi,
-          status,
-          ai_analysis,
-          sector_impacts
-        )
-      `)
-      .order('added_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('user_workspaces')
+        .select(`
+          *,
+          regulations (
+            id,
+            judul_lengkap,
+            nomor,
+            tahun,
+            tentang,
+            upload_date,
+            tanggal_penetapan,
+            instansi,
+            status,
+            ai_analysis,
+            sector_impacts
+          )
+        `)
+        .order('added_at', { ascending: false });
 
-    if (error) throw error;
-    return { data: data || [], count: data?.length || 0 };
+      if (error) {
+        console.error('Workspace query error:', error);
+        throw new Error(`Failed to fetch workspace: ${error.message}`);
+      }
+      return { data: data || [], count: data?.length || 0 };
+    } catch (error) {
+      console.error('getWorkspace error:', error);
+      throw new Error(`Failed to fetch workspace: ${error.message}`);
+    }
   },
 
   // Add regulation to workspace
@@ -158,147 +166,160 @@ export const recentRegulationsApi = {
     offset?: number;
     search?: string;
   } = {}) {
-    let query = supabase
-      .from('regulations')
-      .select(`
-        id,
-        jenis_peraturan,
-        instansi,
-        judul_lengkap,
-        nomor,
-        tahun,
-        tentang,
-        tanggal_penetapan,
-        tanggal_pengundangan,
-        status,
-        upload_date,
-        tempat_penetapan,
-        document_type,
-        ai_analysis,
-        sector_impacts,
-        user_workspaces!left (id)
-      `)
-      .order('upload_date', { ascending: false });
+    try {
+      let query = supabase
+        .from('regulations')
+        .select(`
+          id,
+          jenis_peraturan,
+          instansi,
+          judul_lengkap,
+          nomor,
+          tahun,
+          tentang,
+          tanggal_penetapan,
+          tanggal_pengundangan,
+          status,
+          upload_date,
+          tempat_penetapan,
+          document_type,
+          ai_analysis,
+          sector_impacts,
+          user_workspaces!left (id)
+        `)
+        .order('upload_date', { ascending: false });
 
-    // Add search filter if provided
-    if (options.search) {
-      query = query.or(`judul_lengkap.ilike.%${options.search}%,nomor.ilike.%${options.search}%,tentang.ilike.%${options.search}%`);
-    }
-
-    // Add pagination
-    if (options.limit) {
-      const offset = options.offset || 0;
-      query = query.range(offset, offset + options.limit - 1);
-    }
-
-    const { data: regulations, error } = await query;
-
-    if (error) throw error;
-
-    // Transform data to include workspace status
-    const transformedRegulations = regulations?.map(reg => ({
-      ...reg,
-      in_workspace: !!reg.user_workspaces?.length
-    })) || [];
-
-    // Get total count for pagination
-    let countQuery = supabase
-      .from('regulations')
-      .select('*', { count: 'exact', head: true });
-
-    if (options.search) {
-      countQuery = countQuery.or(`judul_lengkap.ilike.%${options.search}%,nomor.ilike.%${options.search}%,tentang.ilike.%${options.search}%`);
-    }
-
-    const { count, error: countError } = await countQuery;
-
-    if (countError) {
-      console.warn('Failed to get count:', countError);
-    }
-
-    return {
-      data: transformedRegulations,
-      pagination: {
-        total: count || 0,
-        limit: options.limit || transformedRegulations.length,
-        offset: options.offset || 0,
-        has_more: (count || 0) > (options.offset || 0) + (options.limit || transformedRegulations.length),
-        current_page: Math.floor((options.offset || 0) / (options.limit || 20)) + 1,
-        total_pages: Math.ceil((count || 0) / (options.limit || 20))
+      // Add search filter if provided
+      if (options.search) {
+        query = query.or(`judul_lengkap.ilike.%${options.search}%,nomor.ilike.%${options.search}%,tentang.ilike.%${options.search}%`);
       }
-    };
+
+      // Add pagination
+      if (options.limit) {
+        const offset = options.offset || 0;
+        query = query.range(offset, offset + options.limit - 1);
+      }
+
+      const { data: regulations, error } = await query;
+
+      if (error) {
+        console.error('Supabase query error:', error);
+        throw new Error(`Database query failed: ${error.message}`);
+      }
+
+      // Transform data to include workspace status
+      const transformedRegulations = regulations?.map(reg => ({
+        ...reg,
+        in_workspace: !!reg.user_workspaces?.length
+      })) || [];
+
+      // Get total count for pagination
+      let countQuery = supabase
+        .from('regulations')
+        .select('*', { count: 'exact', head: true });
+
+      if (options.search) {
+        countQuery = countQuery.or(`judul_lengkap.ilike.%${options.search}%,nomor.ilike.%${options.search}%,tentang.ilike.%${options.search}%`);
+      }
+
+      const { count, error: countError } = await countQuery;
+
+      if (countError) {
+        console.warn('Failed to get count:', countError);
+      }
+
+      return {
+        data: transformedRegulations,
+        pagination: {
+          total: count || 0,
+          limit: options.limit || transformedRegulations.length,
+          offset: options.offset || 0,
+          has_more: (count || 0) > (options.offset || 0) + (options.limit || transformedRegulations.length),
+          current_page: Math.floor((options.offset || 0) / (options.limit || 20)) + 1,
+          total_pages: Math.ceil((count || 0) / (options.limit || 20))
+        }
+      };
+    } catch (error) {
+      console.error('getRecentRegulations error:', error);
+      throw new Error(`Failed to fetch regulations: ${error.message}`);
+    }
   },
 
   // Get dashboard metrics from actual data
   async getDashboardMetrics() {
-    // Get total regulations count
-    const { count: totalRegulations, error: totalError } = await supabase
-      .from('regulations')
-      .select('*', { count: 'exact', head: true });
+    try {
+      // Get total regulations count
+      const { count: totalRegulations, error: totalError } = await supabase
+        .from('regulations')
+        .select('*', { count: 'exact', head: true });
 
-    if (totalError) {
-      console.warn('Failed to get total regulations:', totalError);
-    }
-
-    // Get today's uploads
-    const today = new Date().toISOString().split('T')[0];
-    const { count: dailyUpdates, error: dailyError } = await supabase
-      .from('regulations')
-      .select('*', { count: 'exact', head: true })
-      .gte('upload_date', today);
-
-    if (dailyError) {
-      console.warn('Failed to get daily updates:', dailyError);
-    }
-
-    // Get high impact regulations by sector
-    const { data: regulations, error: regError } = await supabase
-      .from('regulations')
-      .select('sector_impacts');
-
-    if (regError) {
-      console.warn('Failed to get sector impacts:', regError);
-    }
-
-    // Count high impact by sector
-    const highImpactRegulations: Record<string, number> = {};
-    regulations?.forEach(reg => {
-      if (reg.sector_impacts && Array.isArray(reg.sector_impacts)) {
-        reg.sector_impacts.forEach((impact: any) => {
-          if (impact.impact_level === 'High') {
-            const sector = impact.sector;
-            highImpactRegulations[sector] = (highImpactRegulations[sector] || 0) + 1;
-          }
-        });
+      if (totalError) {
+        console.warn('Failed to get total regulations:', totalError);
       }
-    });
 
-    // Generate weekly trend (simplified - last 7 days)
-    const weeklyTrend = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      
-      const { count: dayRegulations } = await supabase
+      // Get today's uploads
+      const today = new Date().toISOString().split('T')[0];
+      const { count: dailyUpdates, error: dailyError } = await supabase
         .from('regulations')
         .select('*', { count: 'exact', head: true })
-        .gte('upload_date', dateStr)
-        .lt('upload_date', new Date(date.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+        .gte('upload_date', today);
 
-      weeklyTrend.push({
-        date: dateStr,
-        regulations: dayRegulations || 0,
-        highImpact: Math.floor((dayRegulations || 0) * 0.3) // Estimate 30% high impact
+      if (dailyError) {
+        console.warn('Failed to get daily updates:', dailyError);
+      }
+
+      // Get high impact regulations by sector
+      const { data: regulations, error: regError } = await supabase
+        .from('regulations')
+        .select('sector_impacts');
+
+      if (regError) {
+        console.warn('Failed to get sector impacts:', regError);
+      }
+
+      // Count high impact by sector
+      const highImpactRegulations: Record<string, number> = {};
+      regulations?.forEach(reg => {
+        if (reg.sector_impacts && Array.isArray(reg.sector_impacts)) {
+          reg.sector_impacts.forEach((impact: any) => {
+            if (impact.impact_level === 'High') {
+              const sector = impact.sector;
+              highImpactRegulations[sector] = (highImpactRegulations[sector] || 0) + 1;
+            }
+          });
+        }
       });
-    }
 
-    return {
-      totalRegulations: totalRegulations || 0,
-      dailyUpdates: dailyUpdates || 0,
-      highImpactRegulations,
-      weeklyTrend
-    };
+      // Generate weekly trend (simplified - last 7 days)
+      const weeklyTrend = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        const { count: dayRegulations } = await supabase
+          .from('regulations')
+          .select('*', { count: 'exact', head: true })
+          .gte('upload_date', dateStr)
+          .lt('upload_date', new Date(date.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+
+        weeklyTrend.push({
+          date: dateStr,
+          regulations: dayRegulations || 0,
+          highImpact: Math.floor((dayRegulations || 0) * 0.3) // Estimate 30% high impact
+        });
+      }
+
+      return {
+        totalRegulations: totalRegulations || 0,
+        dailyUpdates: dailyUpdates || 0,
+        highImpactRegulations,
+        weeklyTrend
+      };
+    } catch (error) {
+      console.error('getDashboardMetrics error:', error);
+      throw new Error(`Failed to fetch dashboard metrics: ${error.message}`);
+    }
   }
 };
 
@@ -451,36 +472,47 @@ export const viewTrackingApi = {
 export const userChecklistApi = {
   // Add item to user checklist
   async addChecklistItem(regulationId: string, task: string, articleReference?: string) {
-    // Get current user checklist
-    const { data: regulation, error: fetchError } = await supabase
-      .from('regulations')
-      .select('user_checklist')
-      .eq('id', regulationId)
-      .single();
+    try {
+      // Get current user checklist
+      const { data: regulation, error: fetchError } = await supabase
+        .from('regulations')
+        .select('user_checklist')
+        .eq('id', regulationId)
+        .single();
 
-    if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error('Failed to fetch regulation for checklist:', fetchError);
+        throw new Error(`Failed to fetch regulation: ${fetchError.message}`);
+      }
 
-    const currentChecklist = regulation.user_checklist || [];
-    const newItem = {
-      id: Date.now().toString(),
-      task: task.trim(),
-      completed: false,
-      created_at: new Date().toISOString(),
-      article_reference: articleReference || null,
-      source: 'user'
-    };
+      const currentChecklist = regulation.user_checklist || [];
+      const newItem = {
+        id: Date.now().toString(),
+        task: task.trim(),
+        completed: false,
+        created_at: new Date().toISOString(),
+        article_reference: articleReference || null,
+        source: 'user'
+      };
 
-    const updatedChecklist = [...currentChecklist, newItem];
+      const updatedChecklist = [...currentChecklist, newItem];
 
-    const { data, error } = await supabase
-      .from('regulations')
-      .update({ user_checklist: updatedChecklist })
-      .eq('id', regulationId)
-      .select('user_checklist')
-      .single();
+      const { data, error } = await supabase
+        .from('regulations')
+        .update({ user_checklist: updatedChecklist })
+        .eq('id', regulationId)
+        .select('user_checklist')
+        .single();
 
-    if (error) throw error;
-    return { data: newItem, message: 'Checklist item added successfully' };
+      if (error) {
+        console.error('Failed to update checklist:', error);
+        throw new Error(`Failed to update checklist: ${error.message}`);
+      }
+      return { data: newItem, message: 'Checklist item added successfully' };
+    } catch (error) {
+      console.error('addChecklistItem error:', error);
+      throw error;
+    }
   },
 
   // Update checklist item (toggle completion or edit task)
