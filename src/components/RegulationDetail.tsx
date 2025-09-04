@@ -35,6 +35,7 @@ interface RegulationDetailProps {
       sector: string;
       importance: string;
       aiConfidence: number;
+      rationale?: string;
     }>;
     location: string;
     documentType: string;
@@ -594,6 +595,19 @@ export function RegulationDetail({
                               </div>
                             </div>
                           </div>
+                          
+                          {/* AI Rationale */}
+                          {sectorImpact.rationale && (
+                            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                              <div className="flex items-start gap-2">
+                                <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <p className="text-xs font-medium text-blue-800 mb-1">AI Rationale</p>
+                                  <p className="text-sm text-blue-700 leading-relaxed">{sectorImpact.rationale}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                           
                           <div className="flex items-center justify-between">
                             {isEditing ? (

@@ -645,7 +645,8 @@ function transformSectorImpacts(sectorImpacts: any) {
   return sectorImpacts.map(impact => ({
     sector: impact.sector,
     importance: impact.importance?.toLowerCase() || 'medium',
-    aiConfidence: impact.confidence || 0.8
+    aiConfidence: impact.confidence || 0.8,
+    rationale: impact.rationale || null
   }));
 }
 
