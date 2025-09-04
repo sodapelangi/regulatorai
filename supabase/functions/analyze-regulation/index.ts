@@ -274,6 +274,149 @@ async function findOldRegulation(regulation, supabase) {
   }
 }
 
+function parseAIAnalysis(analysisText, hasOldRegulation) {
+  try {
+    const sections = {
+      background: '',
+      key_points: [],
+      old_new_comparison: [],
+      business_impact: '',
+      action_checklist: [],
+      overall_confidence: 0.8
+    };
+
+    // Extract Background section
+    const backgroundMatch = analysisText.match(/### 1\. Background\s*\n(.*?)(?=###|$)/s);
+    if (backgroundMatch) {
+      sections.background = backgroundMatch[1].trim();
+    }
+
+    // Extract Key Points section
+    const keyPointsMatch = analysisText.match(/### 2\. Key Points\s*\n(.*?)(?=###|$)/s);
+    if (keyPointsMatch) {
+      const keyPointsText = keyPointsMatch[1];
+      const bulletPoints = keyPointsText.split(/\n[-•]\s*/).filter(point => point.trim());
+      
+      sections.key_points = bulletPoints.map((point, index) => {
+        const articleMatch = point.match(/\(Art\.\s*(\d+[a-z]*)\)/i);
+        return {
+          title: `Key Point ${index + 1}`,
+          description: point.trim(),
+          article: articleMatch ? `Art. ${articleMatch[1]}` : `Art. ${index + 1}`
+        };
+      });
+    }
+
+    // Extract Old vs New Comparison (only if old regulation exists)
+    if (hasOldRegulation) {
+      const comparisonMatch = analysisText.match(/### 3\. Old vs New Comparison\s*\n(.*?)(?=###|$)/s);
+      if (comparisonMatch) {
+        const comparisonText = comparisonMatch[1];
+        // Parse table format or bullet points
+        const rows = comparisonText.split('\n').filter(row => row.includes('|') || row.includes('Art.'));
+        
+        sections.old_new_comparison = rows.map((row, index) => {
+          const parts = row.split('|').map(part => part.trim());
+          return {
+            article: `Art. ${index + 1}`,
+            old_text: parts[1] || 'Previous version not available',
+            new_text: parts[2] || 'Current version not available'
+          };
+        });
+      }
+    }
+
+    // Extract Business Impact section
+    const businessMatch = analysisText.match(/### 4\. Why It Matters for Business\s*\n(.*?)(?=###|$)/s);
+    if (businessMatch) {
+      sections.business_impact = businessMatch[1].trim();
+    }
+
+    // Extract Action Checklist
+    const checklistMatch = analysisText.match(/### 6\. Recommended Action Checklist\s*\n(.*?)(?=###|$)/s);
+    if (checklistMatch) {
+      const checklistText = checklistMatch[1];
+      const items = checklistText.split(/\n□\s*/).filter(item => item.trim());
+      
+      sections.action_checklist = items.map((item, index) => {
+        const articleMatch = item.match(/\(Art\.\s*(\d+[a-z]*)\)/i);
+        return {
+          id: `ai_${Date.now()}_${index}`,
+          task: item.trim(),
+          article_reference: articleMatch ? `Art. ${articleMatch[1]}` : undefined
+        };
+      });
+    }
+
+    // Extract confidence level
+    const confidenceMatch = analysisText.match(/(\d+)%\s*confidence/i);
+    if (confidenceMatch) {
+      sections.overall_confidence = parseInt(confidenceMatch[1]) / 100;
+    }
+
+    return sections;
+  } catch (error) {
+    console.error('Error parsing AI analysis:', error);
+    return {
+      background: 'Analysis parsing failed',
+      key_points: [],
+      old_new_comparison: [],
+      business_impact: 'Business impact analysis unavailable',
+      action_checklist: [],
+      overall_confidence: 0.5
+    };
+  }
+}
+
+function parseSectorImpacts(impactText) {
+  try {
+    const sectors = [];
+    const lines = impactText.split('\n').filter(line => line.trim());
+    
+    let currentSector = null;
+    
+    for (const line of lines) {
+      if (line.startsWith('Sector:')) {
+        if (currentSector) {
+          sectors.push(currentSector);
+        }
+        currentSector = {
+          sector: line.replace('Sector:', '').trim(),
+          importance: 'medium',
+          confidence: 0.8,
+          rationale: ''
+        };
+      } else if (line.startsWith('Impact Level:') && currentSector) {
+        currentSector.importance = line.replace('Impact Level:', '').trim().toLowerCase();
+      } else if (line.startsWith('Rationale:') && currentSector) {
+        currentSector.rationale = line.replace('Rationale:', '').trim();
+      } else if (line.startsWith('Confidence:') && currentSector) {
+        const confidenceStr = line.replace('Confidence:', '').trim();
+        currentSector.confidence = parseFloat(confidenceStr) || 0.8;
+      }
+    }
+    
+    if (currentSector) {
+      sectors.push(currentSector);
+    }
+    
+    return sectors.length > 0 ? sectors : [{
+      sector: 'General Corporate',
+      importance: 'medium',
+      confidence: 0.5,
+      rationale: 'Default classification due to parsing error'
+    }];
+  } catch (error) {
+    console.error('Error parsing sector impacts:', error);
+    return [{
+      sector: 'General Corporate',
+      importance: 'medium',
+      confidence: 0.5,
+      rationale: 'Default classification due to parsing error'
+    }];
+  }
+}
+
 async function generateAIAnalysis(regulation, oldRegulation) {
   const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
   if (!geminiApiKey) {
