@@ -67,7 +67,7 @@ export function Dashboard({ onViewRegulation }: DashboardProps) {
     
     return sectorImpacts.map(impact => ({
       sector: impact.sector,
-      importance: impact.impact_level?.toLowerCase() || 'medium',
+      importance: impact.importance?.toLowerCase() || 'medium',
       aiConfidence: impact.confidence || 0.8
     }));
   };
