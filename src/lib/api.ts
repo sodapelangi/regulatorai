@@ -603,7 +603,7 @@ export const userChecklistApi = {
     }
 
     const aiChecklist = regulation.ai_checklist || [];
-    const currentUserChecklist = regulation[0].user_checklist || [];
+    const currentUserChecklist = regulation[0]?.user_checklist || [];
 
     // Convert AI items to user items with new IDs
     const copiedItems = aiChecklist.map(aiItem => ({
