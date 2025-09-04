@@ -149,6 +149,51 @@ Deno.serve(async (req) => {
 function extractCompleteMetadata(text) {
   const metadata = {};
 
+  // Helper function to safely parse dates into ISO format
+  function toIsoDate(value) {
+    // Accept numbers (e.g. 2) or strings (e.g. "2", "2025-09-04")
+    if (typeof value === "number") {
+      // If it's just a number, return null (can't determine valid date)
+      return null;
+    }
+
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      
+      // If it's already a full ISO date, keep it
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+      // If it's just a number like "2", return null
+      if (/^\d+$/.test(trimmed)) {
+        return null;
+      }
+
+      // Indonesian month mapping
+      const monthMap = {
+        'januari': '01', 'februari': '02', 'maret': '03', 'april': '04',
+        'mei': '05', 'juni': '06', 'juli': '07', 'agustus': '08',
+        'september': '09', 'oktober': '10', 'november': '11', 'desember': '12'
+      };
+      
+      // Try to parse Indonesian date format: "2 Januari 2025"
+      const indonesianDateMatch = trimmed.match(/(\d{1,2})\s+(\w+)\s+(\d{4})/i);
+      if (indonesianDateMatch) {
+        const [, day, monthName, year] = indonesianDateMatch;
+        const month = monthMap[monthName.toLowerCase()];
+        if (month) {
+          const paddedDay = day.padStart(2, '0');
+          return `${year}-${month}-${paddedDay}`;
+        }
+      }
+      
+      // Fallback: let Date constructor try (covers "2025/09/04")
+      const d = new Date(trimmed);
+      if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
+    }
+
+    return null; // unable to parse
+  }
+
   // Extract tanggal_penetapan and tempat_penetapan
   const signingMatch = text.match(
     /Ditetapkan di\s+(.+?)\s+pada tanggal\s+(.+?)\s+(.+?),?\s*ttd\s+(.+?)(?=\n|$)/i
@@ -156,7 +201,7 @@ function extractCompleteMetadata(text) {
   
   if (signingMatch) {
     metadata.tempat_penetapan = signingMatch[1].trim();
-    metadata.tanggal_penetapan = signingMatch[2].trim();
+    metadata.tanggal_penetapan = toIsoDate(signingMatch[2].trim());
     metadata.jabatan_penandatangan = signingMatch[3].trim();
     metadata.nama_penandatangan = signingMatch[4].trim();
   }
@@ -167,7 +212,443 @@ function extractCompleteMetadata(text) {
   );
   
   if (pengundanganMatch) {
-    metadata.tanggal_pengundangan = pengundanganMatch[2].trim();
+    metadata.tanggal_pengundangan = toIsoDate(pengundanganMatch[2].trim());
+    metadata.tempat_pengundangan = pengundanganMatch[1].trim();
+  }
+
+  // Extract other useful metadata
+  const nomorMatch = text.match(/NOMOR\s+(\d+\s+TAHUN\s+\d{4})/i);
+  if (nomorMatch) {
+    metadata.nomor = nomorMatch[1].trim();
+  }
+
+  const tahunMatch = text.match(/TAHUN\s+(\d{4})/i);
+  if (tahunMatch) {
+    metadata.tahun = tahunMatch[1].trim();
+  }
+
+  return metadata;
+}
+
+async function findOldRegulation(regulation, supabase) {
+  try {
+    // Look for revocation patterns
+    const revocationPatterns = [
+      /perlu dilakukan perubahan/i,
+      /dicabut dan dinyatakan tidak berlaku/i,
+      /mengubah.*peraturan/i,
+      /mencabut.*peraturan/i
+    ];
+
+    const hasRevocation = revocationPatterns.some(pattern => 
+      pattern.test(regulation.menimbang || '') || 
+      pattern.test(regulation.full_text || '')
+    );
+
+    if (!hasRevocation) {
+      return null;
+    }
+
+    // Extract regulation numbers from text
+    const numberPattern = /(?:peraturan|undang-undang).*?nomor\s*(\d+)\s*tahun\s*(\d{4})/gi;
+    const matches = [...(regulation.menimbang || '').matchAll(numberPattern)];
+
+    if (matches.length > 0) {
+      const [, number, year] = matches[0];
+      
+      // Try to find the old regulation in database
+      const { data: oldRegulation } = await supabase
+        .from('regulations')
+        .select('*')
+        .eq('nomor', number)
+        .eq('tahun', parseInt(year))
+        .single();
+
+      return oldRegulation;
+    }
+
+    return null;
+  } catch (error) {
+    console.warn('Error finding old regulation:', error);
+    return null;
+  }
+}
+
+async function generateAIAnalysis(regulation, oldRegulation) {
+  const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+  if (!geminiApiKey) {
+    throw new Error('Gemini API key not configured');
+  }
+
+  const prompt = createAnalysisPrompt(regulation, oldRegulation);
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: prompt }]
+          }],
+          generationConfig: {
+            temperature: 0.1,
+            topK: 1,
+            topP: 0.8,
+            maxOutputTokens: 4000,
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Gemini API error response:', errorText);
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    
+    if (!result.candidates || !result.candidates[0] || !result.candidates[0].content) {
+      console.error('Invalid Gemini response structure:', result);
+      throw new Error('Invalid response structure from Gemini API');
+    }
+
+    const analysisText = result.candidates[0].content.parts[0].text;
+    console.log('Raw analysis text:', analysisText.substring(0, 500) + '...');
+
+    // Parse the structured response
+    return parseAIAnalysis(analysisText, oldRegulation !== null);
+  } catch (error) {
+    console.error('Gemini API error:', error);
+    throw new Error(`AI analysis failed: ${error.message}`);
+  }
+}
+
+async function generateSectorImpacts(regulation) {
+  const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+  if (!geminiApiKey) {
+    throw new Error('Gemini API key not configured');
+  }
+
+  const prompt = createSectorImpactPrompt(regulation);
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: prompt }]
+          }],
+          generationConfig: {
+            temperature: 0.1,
+            topK: 1,
+            topP: 0.8,
+            maxOutputTokens: 1500,
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Sector impact API error:', errorText);
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    
+    if (!result.candidates || !result.candidates[0] || !result.candidates[0].content) {
+      console.error('Invalid sector impact response:', result);
+      throw new Error('Invalid response structure from Gemini API');
+    }
+
+    const impactText = result.candidates[0].content.parts[0].text;
+    console.log('Raw sector impact text:', impactText);
+
+    return parseSectorImpacts(impactText);
+  } catch (error) {
+    console.error('Sector impact analysis error:', error);
+    throw new Error(`Sector impact analysis failed: ${error.message}`);
+  }
+}
+
+function createAnalysisPrompt(regulation, oldRegulation) {
+  return `# Indonesian Regulatory AI Analysis
+
+You are an AI legal analyst specializing in Indonesian regulatory interpretation. Analyze the provided regulation with absolute neutrality, using factual descriptors and direct legal text references.
+
+## Regulation Data:
+**Title**: ${regulation.judul_lengkap}
+**Number**: ${regulation.nomor}
+**Year**: ${regulation.tahun}
+**Subject**: ${regulation.tentang}
+**Authority**: ${regulation.instansi}
+**Establishment Date**: ${regulation.tanggal_penetapan}
+
+**Menimbang (Whereas)**: ${regulation.menimbang}
+**Mengingat (Considering)**: ${regulation.mengingat}
+
+**Full Text**: ${regulation.full_text}
+
+${oldRegulation ? `**Previous Regulation Available**: ${oldRegulation.judul_lengkap} (${oldRegulation.nomor}/${oldRegulation.tahun})` : '**Previous Regulation**: Not available in system'}
+
+## CRITICAL: You MUST provide analysis in the exact format below:
+
+### 1. Background
+[2-3 sentences about the regulation background]
+
+### 2. Key Points
+[4-6 bullet points of main provisions with article references]
+
+### 3. Old vs New Comparison
+${oldRegulation ? '[Create comparison table]' : 'Previous regulation not available in system'}
+
+### 4.  Why It Matters for Business
+    **Content**: Focus on practical business implications
+    **Style**: Use factual statements about risks, compliance requirements, and operational changes
+    **Length**: 4-7 sentences maximum
+
+    **Structure**:
+    1. Primary business risk/opportunity
+    2. Specific compliance implications  
+    3. Financial/operational impact
+    4. Timeline considerations (if applicable)
+
+    ### 6. Recommended Action Checklist
+    **Requirements**:
+    - Generate 5-8 actionable items
+    - Mark as "*AI Generated"
+    - Use imperative verbs
+    - Include specific timeframes where applicable
+    - Reference relevant articles
+
+    **Format**:
+    \`\`\`
+    Recommended Action Checklist *AI Generated
+
+    □ [Action item with specific deadline/reference]
+    □ [Action item with specific deadline/reference]
+    □ [Action item with specific deadline/reference]
+    \`\`\`
+
+    ## Output Requirements
+
+    ### Confidence Level
+    State AI confidence percentage in matching requirements and include disclaimer:
+    "AI Analysis is provided for guidance only. Always verify regulation interpretations with legal experts."
+
+    ### Legal Referencing Standards
+    - Use Indonesian article citation format: (Art. [number])
+    - For multiple articles: (Arts. [X]-[Y]) or (Arts. [X], [Y], [Z])
+    - Include regulation number and year in first reference
+    - Use consistent abbreviation format
+
+    ### Language Guidelines
+    - *Absolute neutrality : no personal opinions, promotional language or emotional expressions
+    - Avoids aggregated adjective (very important, ground breaking), instead using factual descriptors (maximum fines increased) 
+    Prioritized data and direct legal text over narrative commentary
+    - **Preferred**: Specific numbers, dates, and measurable changes
+    - **Prohibited**: Subjective assessments, comparative superlatives, promotional language
+
+    ## Quality Checklist
+    Before finalizing analysis, verify:
+    - [ ] All article references are accurate
+    - [ ] No promotional or subjective language used
+    - [ ] Sector impacts have clear rationales
+    - [ ] Action items are specific and actionable
+    - [ ] Comparison table shows concrete differences (when applicable)
+    - [ ] Business implications are practical and measurable
+
+`;
+}
+
+function createSectorImpactPrompt(regulation) {
+  return `# Sector Impact Classification
+
+Analyze this Indonesian regulation and identify 4-5 business sectors most impacted.
+
+**Regulation**: ${regulation.judul_lengkap}
+**Subject**: ${regulation.tentang}
+**Full Text**: ${regulation.full_text}
+
+**Available Sectors**:
+${AVAILABLE_SECTORS.map(sector => `- ${sector}`).join('\n')}
+
+**CRITICAL: You MUST respond in this EXACT format:**
+
+Sector: [Exact sector name from list]
+Impact Level: [High/Medium/Low]
+Rationale: [One sentence with article reference]
+Confidence: [0.0-1.0]
+
+Sector: [Another exact sector name from list]
+Impact Level: [High/Medium/Low]
+Rationale: [One sentence with article reference]
+Confidence: [0.0-1.0]
+
+[Continue for 4-5 sectors total]
+
+IMPORTANT: 
+- Use ONLY sector names from the provided list
+- Include exactly 4-5 sectors
+- Follow the exact format above`;
+}
+
+// IMPROVED: Better parsing functions
+function parseAIAnalysis(analysisText, hasOldRegulation) {
+  console.log('Parsing analysis text:', analysisText.substring(0, 200) + '...');
+  
+  try {
+    return {
+      background: extractSection(analysisText, 'Background') || 'Analysis background not available',
+      key_points: parseKeyPoints(extractSection(analysisText, 'Key Points') || ''),
+      old_new_comparison: hasOldRegulation ? 
+        parseComparison(extractSection(analysisText, 'Old vs New Comparison') || '') : 
+        null,
+      business_impact: extractSection(analysisText, 'Why It Matters for Business') || 
+        'Business impact analysis not available',
+      action_checklist: parseActionChecklist(extractSection(analysisText, 'Action Checklist') || ''),
+      overall_confidence: extractConfidence(analysisText) || 0.85
+    };
+  } catch (error) {
+    console.error('Error parsing AI analysis:', error);
+    // Return fallback structure
+    return {
+      background: 'Analysis parsing failed',
+      key_points: [],
+      old_new_comparison: null,
+      business_impact: 'Analysis parsing failed',
+      action_checklist: [],
+      overall_confidence: 0.5
+    };
+  }
+}
+
+function parseSectorImpacts(impactText) {
+  console.log('Parsing sector impacts:', impactText);
+  
+  const impacts = [];
+  const lines = impactText.split('\n').filter(line => line.trim());
+  
+  let currentImpact = {};
+  
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    
+    if (trimmedLine.startsWith('Sector:')) {
+      // Save previous impact if complete
+      if (currentImpact.sector && currentImpact.impact_level) {
+        impacts.push({...currentImpact});
+      }
+      
+      // Start new impact
+      currentImpact = {
+        sector: trimmedLine.replace('Sector:', '').trim()
+      };
+    } else if (trimmedLine.startsWith('Impact Level:')) {
+      currentImpact.impact_level = trimmedLine.replace('Impact Level:', '').trim();
+    } else if (trimmedLine.startsWith('Rationale:')) {
+      currentImpact.rationale = trimmedLine.replace('Rationale:', '').trim();
+    } else if (trimmedLine.startsWith('Confidence:')) {
+      currentImpact.confidence = parseFloat(trimmedLine.replace('Confidence:', '').trim()) || 0.8;
+    }
+  }
+  
+  // Add the last impact
+  if (currentImpact.sector && currentImpact.impact_level) {
+    impacts.push(currentImpact);
+  }
+  
+  console.log('Parsed impacts:', impacts);
+  return impacts.slice(0, 5); // Ensure max 5 sectors
+}
+
+function extractSection(text, sectionName) {
+  const regex = new RegExp(`###?\\s*\\d*\\.?\\s*${sectionName}[^#]*?([\\s\\S]*?)(?=###|$)`, 'i');
+  const match = text.match(regex);
+  return match ? match[1].trim() : null;
+}
+
+function parseKeyPoints(text) {
+  if (!text) return [];
+  
+  const points = text.split(/[-•]\s*/).filter(p => p.trim());
+  return points.slice(0, 6).map((point, index) => ({
+    title: `Key Point ${index + 1}`,
+    description: point.trim(),
+    article: extractArticleReference(point) || '',
+    confidence: 0.85
+  }));
+}
+
+function parseComparison(text) {
+  return [{
+    aspect: 'Main Changes',
+    old_text: 'Previous provisions',
+    new_text: 'Updated provisions',
+    article: 'Various articles'
+  }];
+}
+
+function parseActionChecklist(text) {
+  if (!text) return [];
+  
+  console.log('Parsing action checklist from:', text);
+  
+  // Look for checkbox items
+  const checkboxPattern = /[□☐]\s*(.+?)(?=\s*[□☐]|\*AI Generated|$)/gs;
+  const matches = [...text.matchAll(checkboxPattern)];
+  
+  const items = matches.map((match, index) => ({
+    id: `action_${index + 1}`,
+    task: match[1].trim().replace('*AI Generated', '').trim(),
+    article_reference: extractArticleReference(match[1]),
+    is_ai_generated: true
+  }));
+  
+  console.log('Parsed action items:', items);
+  return items.slice(0, 8);
+}
+
+function extractArticleReference(text) {
+  const match = text.match(/\(Arts?\.\s*[\d\-,\s]+\)/i);
+  return match ? match[0] : null;
+}
+
+function extractConfidence(text) {
+  const match = text.match(/(?:confidence[:\s]*|Analysis Confidence[:\s]*)(\d+(?:\.\d+)?)\s*%/i);
+  return match ? parseFloat(match[1]) / 100 : null;
+}
+
+
+  // Extract tanggal_penetapan and tempat_penetapan
+  const signingMatch = text.match(
+    /Ditetapkan di\s+(.+?)\s+pada tanggal\s+(.+?)\s+(.+?),?\s*ttd\s+(.+?)(?=\n|$)/i
+  );
+  
+  if (signingMatch) {
+    metadata.tempat_penetapan = signingMatch[1].trim();
+    metadata.tanggal_penetapan = safeParseDate(signingMatch[2].trim());
+    metadata.jabatan_penandatangan = signingMatch[3].trim();
+    metadata.nama_penandatangan = signingMatch[4].trim();
+  }
+
+  // Extract tanggal_pengundangan
+  const pengundanganMatch = text.match(
+    /Diundangkan di\s+(.+?)\s+pada tanggal\s+(.+?)/i
+  );
+  
+  if (pengundanganMatch) {
+    metadata.tanggal_pengundangan = safeParseDate(pengundanganMatch[2].trim());
     metadata.tempat_pengundangan = pengundanganMatch[1].trim();
   }
 
