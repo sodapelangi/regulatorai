@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Button } from "./ui/button";
 import { WorkspaceNavigation } from "./WorkspaceNavigation";
 import { RegulationDetail } from "./RegulationDetail";
 import { MyWorkspace } from "./MyWorkspace";

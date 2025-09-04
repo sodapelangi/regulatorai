@@ -686,7 +686,7 @@ function getDefaultAiAnalysis() {
 export const regulationApi = {
   // Get regulation with workspace status
   async getRegulationWithContext(regulationId: string) {
-    const { data: regulation, error: regError } = await supabase
+    const { data: regulations, error: regError } = await supabase
       .from('regulations')
       .select(`
         *,
@@ -706,9 +706,15 @@ export const regulationApi = {
         )
       `)
       .eq('id', regulationId)
-      .single();
+      .limit(1);
 
     if (regError) throw regError;
+    
+    if (!regulations || regulations.length === 0) {
+      return null;
+    }
+    
+    const regulation = regulations[0];
 
     // Record view
     await viewTrackingApi.recordView(regulationId, {
