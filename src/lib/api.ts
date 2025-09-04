@@ -282,7 +282,7 @@ export const recentRegulationsApi = {
       regulations?.forEach(reg => {
         if (reg.sector_impacts && Array.isArray(reg.sector_impacts)) {
           reg.sector_impacts.forEach((impact: any) => {
-            if (impact.impact_level === 'High') {
+            if (impact.importance === 'high') {
               const sector = impact.sector;
               highImpactRegulations[sector] = (highImpactRegulations[sector] || 0) + 1;
             }
