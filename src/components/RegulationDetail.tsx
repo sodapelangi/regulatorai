@@ -61,6 +61,17 @@ interface RegulationDetailProps {
     };
     inWorkspace: boolean;
     viewedAt?: string;
+    aiChecklist?: Array<{
+      id: string;
+      task: string;
+      article_reference?: string;
+    }>;
+    userChecklist?: Array<{
+      id: string;
+      task: string;
+      completed: boolean;
+      article_reference?: string;
+    }>;
   };
   onBack: () => void;
   onAddToWorkspace: () => void;
@@ -73,11 +84,16 @@ export function RegulationDetail({
 }: RegulationDetailProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [newChecklistItem, setNewChecklistItem] = useState("");
-  const [checklist, setChecklist] = useState<Array<{
+  const [userChecklist, setUserChecklist] = useState<Array<{
     id: string;
     task: string;
     completed: boolean;
-    isAiGenerated: boolean;
+    article_reference?: string;
+  }>>([]);
+  const [aiChecklist, setAiChecklist] = useState<Array<{
+    id: string;
+    task: string;
+    article_reference?: string;
   }>>([]);
   const [activeTab, setActiveTab] = useState("overview");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -99,6 +115,14 @@ export function RegulationDetail({
     }
 
     try {
+      // Initialize checklists from regulation data
+      if (regulation.aiChecklist) {
+        setAiChecklist(regulation.aiChecklist);
+      }
+      if (regulation.userChecklist) {
+        setUserChecklist(regulation.userChecklist);
+      }
+
       // Load activity history from regulation_views
       const { data: views, error: viewsError } = await supabase
         .from('regulation_views')
@@ -135,34 +159,6 @@ export function RegulationDetail({
         }]);
       }
 
-      // Generate default checklist based on regulation
-      const defaultChecklist = [
-        {
-          id: '1',
-          task: 'Review regulation requirements and scope',
-          completed: false,
-          isAiGenerated: true
-        },
-        {
-          id: '2',
-          task: 'Assess compliance impact on current operations',
-          completed: false,
-          isAiGenerated: true
-        },
-        {
-          id: '3',
-          task: 'Consult with legal team for interpretation',
-          completed: false,
-          isAiGenerated: true
-        },
-        {
-          id: '4',
-          task: 'Identify required policy or procedure changes',
-          completed: false,
-          isAiGenerated: true
-        }
-      ];
-      setChecklist(defaultChecklist);
 
     } catch (error) {
       console.error('Failed to load regulation data:', error);
@@ -199,17 +195,75 @@ export function RegulationDetail({
         id: Date.now().toString(),
         task: newChecklistItem.trim(),
         completed: false,
-        isAiGenerated: false
+        article_reference: undefined
       };
-      setChecklist([...checklist, newItem]);
+      
+      // Add to database
+      userChecklistApi.addItem(regulation.id, newItem.task, newItem.article_reference)
+        .then(() => {
+          setUserChecklist([...userChecklist, newItem]);
+          toast.success('Task added successfully');
+        })
+        .catch((error) => {
+          console.error('Failed to add checklist item:', error);
+          toast.error('Failed to add task');
+        });
+      
       setNewChecklistItem("");
     }
   };
 
-  const handleToggleChecklistItem = (itemId: string) => {
-    setChecklist(checklist.map(item => 
-      item.id === itemId ? { ...item, completed: !item.completed } : item
-    ));
+  const handleToggleChecklistItem = (itemId: string, source: 'ai' | 'user') => {
+    if (source === 'user') {
+      const item = userChecklist.find(item => item.id === itemId);
+      if (item) {
+        const updatedItem = { ...item, completed: !item.completed };
+        
+        userChecklistApi.updateItem(regulation.id, itemId, updatedItem.task, updatedItem.completed, updatedItem.article_reference)
+          .then(() => {
+            setUserChecklist(userChecklist.map(item => 
+              item.id === itemId ? updatedItem : item
+            ));
+          })
+          .catch((error) => {
+            console.error('Failed to update checklist item:', error);
+            toast.error('Failed to update task');
+          });
+      }
+    }
+  };
+
+  const handleRemoveUserChecklistItem = (itemId: string) => {
+    userChecklistApi.removeItem(regulation.id, itemId)
+      .then(() => {
+        setUserChecklist(userChecklist.filter(item => item.id !== itemId));
+        toast.success('Task removed');
+      })
+      .catch((error) => {
+        console.error('Failed to remove checklist item:', error);
+        toast.error('Failed to remove task');
+      });
+  };
+
+  const handleCopyAIChecklist = () => {
+    if (aiChecklist.length === 0) {
+      toast.error('No AI suggestions to copy');
+      return;
+    }
+
+    userChecklistApi.copyAIChecklist(regulation.id, aiChecklist)
+      .then(() => {
+        const newUserItems = aiChecklist.map(item => ({
+          ...item,
+          completed: false
+        }));
+        setUserChecklist([...userChecklist, ...newUserItems]);
+        toast.success('AI suggestions copied to your tasks');
+      })
+      .catch((error) => {
+        console.error('Failed to copy AI checklist:', error);
+        toast.error('Failed to copy AI suggestions');
+      });
   };
 
   const handleReanalyze = async () => {
@@ -282,8 +336,8 @@ export function RegulationDetail({
     toast.success('Sector impact updated');
   };
 
-  const completedTasks = checklist.filter(item => item.completed).length;
-  const totalTasks = checklist.length;
+  const completedTasks = userChecklist.filter(item => item.completed).length;
+  const totalTasks = userChecklist.length;
   const completionPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   return (
@@ -766,20 +820,6 @@ export function RegulationDetail({
                 </div>
               </CardHeader>
               <CardContent className="p-6 space-y-4">
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* History Tab */}
-          <TabsContent value="history" className="space-y-6">
-            <Card className="border-gray-200">
-              <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-t-lg">
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <History className="h-6 w-6 text-orange-600" />
-                  Activity Timeline
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 space-y-6">
                 {/* AI Suggestions Section */}
                 {aiChecklist.length > 0 && (
                   <div className="space-y-4">
@@ -847,7 +887,7 @@ export function RegulationDetail({
                           <div className="flex items-start space-x-4">
                             <Checkbox
                               checked={item.completed}
-                              onCheckedChange={() => handleToggleChecklistItem(item.id, item.source)}
+                              onCheckedChange={() => handleToggleChecklistItem(item.id, 'user')}
                               className="mt-1 h-5 w-5"
                             />
                             <div className="flex-1">
@@ -907,7 +947,20 @@ export function RegulationDetail({
                     </Button>
                   </div>
                 </div>
-                {/* Real Activity Timeline */}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* History Tab */}
+          <TabsContent value="history" className="space-y-6">
+            <Card className="border-gray-200">
+              <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-t-lg">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <History className="h-6 w-6 text-orange-600" />
+                  Activity Timeline
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-6">
                 <div className="space-y-4">
                   {activityHistory.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
