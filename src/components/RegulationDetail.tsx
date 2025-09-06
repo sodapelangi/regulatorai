@@ -738,21 +738,58 @@ export function RegulationDetail({
                     <CheckCircle2 className="h-5 w-5 text-green-600" />
                     Key Regulatory Points
                   </h3>
-                  <div className="space-y-4">
-                    {(aiAnalysis?.key_points || regulation.aiAnalysis?.key_points || []).map((point, index) => (
-                      <div key={index} className="border border-gray-200 rounded-lg p-6 hover:shadow-sm transition-shadow">
-                        <div className="flex items-start gap-4">
-                          <Badge variant="outline" className="text-xs font-mono font-medium px-3 py-1">
-                            {point.article}
-                          </Badge>
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900 mb-3">{point.title}</h4>
-                            <p className="text-gray-700 leading-relaxed">{point.description}</p>
+                  {(aiAnalysis?.key_points || regulation.aiAnalysis?.key_points || []).length === 0 ? (
+                    <div className="border border-gray-200 rounded-lg p-8 text-center">
+                      <CheckCircle2 className="h-8 w-8 text-gray-400 mx-auto mb-3" />
+                      <p className="text-gray-500 font-medium">No key points available</p>
+                      <p className="text-sm text-gray-400 mt-1">AI analysis may not have identified specific regulatory points</p>
+                    </div>
+                  ) : (
+                    <ul className="space-y-6" role="list">
+                      {(aiAnalysis?.key_points || regulation.aiAnalysis?.key_points || []).map((point, index) => (
+                        <li key={index} className="group">
+                          <div className="border border-gray-200 rounded-xl p-6 hover:shadow-md hover:border-gray-300 transition-all duration-200 bg-white">
+                            {/* Header with article badge and title */}
+                            <div className="flex items-start gap-4 mb-4">
+                              <Badge 
+                                variant="outline" 
+                                className="text-xs font-mono font-semibold px-3 py-1.5 bg-blue-50 border-blue-200 text-blue-700 flex-shrink-0"
+                              >
+                                {point.article}
+                              </Badge>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-lg font-bold text-gray-900 leading-tight group-hover:text-blue-700 transition-colors">
+                                  {point.title}
+                                </h4>
+                              </div>
+                            </div>
+                            
+                            {/* Description with better typography */}
+                            <div className="ml-0 pl-0">
+                              <div className="prose prose-sm max-w-none">
+                                <p className="text-gray-700 leading-relaxed text-base m-0">
+                                  {point.description}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            {/* Visual indicator for importance */}
+                            <div className="mt-4 pt-4 border-t border-gray-100">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                  <span className="font-medium">Key Provision</span>
+                                </div>
+                                <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-600">
+                                  Point {index + 1} of {(aiAnalysis?.key_points || regulation.aiAnalysis?.key_points || []).length}
+                                </Badge>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
                 <Separator />
